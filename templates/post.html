@@ -1,0 +1,14 @@
+<div class="post">
+  <div class="sub-header">
+  {{!subreddit_link}}
+  <a href="{{post['permalink']}}" >
+    <b>{{!post['title']}}</b>
+  </a>
+  <span class="flair">{{post['link_flair_text'] or ''}}</span>
+  <br>
+  by <a href="/u/{{post['author']}}">{{post['author']}}</a> at {{created}}<br>
+  </div>
+  <div>
+    {{!content}}
+  </div>
+</div>
