@@ -18,7 +18,7 @@ body {
     bottom: 0;
     left: 0;
     right: 0;
-    color:#ACA4F6;
+    color:#CCCCCC;
     background:#0C0C0C;
     display: flex;
     flex-direction: column;
@@ -36,11 +36,14 @@ code {
 .header {
     flex-shrink: 0;
     background-color:#000;
+    border-bottom: 1px solid white;
+    border-radius:0px;
 }
 
 .sub-header {
     display:inline-block;
-    margin-bottom:10px;
+    margin-bottom:5px;
+
 }
 
 .content {
@@ -61,13 +64,23 @@ code {
 
 
 a {
-    color:#FFE620;
+    color:white;
+    font-weight: bold;
     outline:none;
     text-decoration:none;
 }
 
+a:hover {
+    color:#FFE620;
+}
+
 b {
-    color:#7352E6;
+    color:white;
+    font-weight: bold;
+}
+
+b {
+
 }
 
 .nav{
@@ -80,11 +93,12 @@ b {
 
 
 .title {
-    color: #7352E6;
+    color: white;
     display: inline-block;
     font-size: 20px;
     margin:5px;
     margin-right:0px;
+    font-weight: bold;
 }
 
 .title:hover {
@@ -95,15 +109,13 @@ b {
 .button {
     max-width:300px;
     border:none;
-    color:#ACA4F6;
-    background: #0C0C0C;
+    color:white;
     height:30px;
-    background: #000;
     padding:5px;
+    font-weight: bold;
 }
 
 .button:hover {
-    background: #080808;
     color: #FFE620;
 }
 
@@ -137,10 +149,7 @@ h1 {
 
 hr {
     border:1px solid #FFE620;
-}
-
-.header hr{
-    margin:0;
+    border:0px;
 }
 
 .footer hr{
@@ -156,6 +165,10 @@ hr {
     background-color:#000;
 }
 
+.flair {
+    background-color:#1C1C1C;
+}
+
 .spoiler {
     background:grey;
     color:grey;
@@ -164,22 +177,9 @@ hr {
     color:white;
 }
 
-img {
-    max-width: 90vw;
-    max-height: 80vh;
-    padding:5px;
-}
-
-video {
-    max-width: 90vw;
-    max-height: 80vh;
-    padding:5px;
-}
-
 .media {
-    max-width: 90vw;
     max-height: 80vh;
-    padding:5px;
+    max-width:100%;
 }
 
 
@@ -194,9 +194,38 @@ video {
 
 
 .post hr {
-    border:1px solid #ACA4F6;
+    border:1px solid white;
 }
 
+.post {
+    background-color:#282828;
+    padding:5px;
+    margin:auto;
+    margin-top:10px;
+    max-width:90vw;
+}
+
+.comments {
+    text-align:left;
+    margin:auto;
+}
+
+.comment {
+    background-color:#282828;
+    max-width:90vw;
+    margin:auto;
+    padding:5px;
+}
+
+.reply {
+    border-left:1px solid white;
+    border-radius:0px;
+    padding:5px;
+}
+
+.comment hr {
+    border:1px solid white;
+}
 
 table, th, td {
     border: 1px solid #ACA4F6;
@@ -225,23 +254,9 @@ ul {
 .comments table, th, td {
     margin-left: 5px;
     margin-right: 5px;
-}
-
-.comments {
     text-align:left;
-    margin-left:5px;
 }
 
-.comment {
-    max-width:max-content;
-    border-left:1px solid #ACA4F6;
-    border-radius:0px;
-    padding-left:10px;
-}
-
-.comment hr {
-    border:1px solid #ACA4F6;
-}
 
 .link {
     margin-right:10px;

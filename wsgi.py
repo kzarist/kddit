@@ -21,14 +21,14 @@ index_page = SimpleTemplate(open(f"{root}/templates/index.html").read())
 page_header = SimpleTemplate(open(f"{root}/templates/header.html").read())
 post_template = SimpleTemplate(open(f"{root}/templates/post.html").read())
 video_template = SimpleTemplate(
-    '<video controls poster="/proxy/{{post["thumbnail"]}}" preload="none" src="/proxy/{{post["media"]["reddit_video"]["fallback_url"]}}">')
+    '<video class="media" controls poster="/proxy/{{post["thumbnail"]}}" preload="none" src="/proxy/{{post["media"]["reddit_video"]["fallback_url"]}}">')
 nsfw_video_template = SimpleTemplate(
-    '<video controls preload="none" src="/proxy/{{post["media"]["reddit_video"]["fallback_url"]}}"></video>'
+    '<video class="media" controls preload="none" src="/proxy/{{post["media"]["reddit_video"]["fallback_url"]}}"></video>'
 )
 
-image_template = SimpleTemplate('<img src="/proxy/{{post["url"]}}">')
+image_template = SimpleTemplate('<img class="media" src="/proxy/{{post["url"]}}">')
 nsfw_image_template = SimpleTemplate(
-    '<label><input type="checkbox" class="nsfw"><img src="/proxy/{{post["url"]}}"></label>')
+    '<label><input type="checkbox" class="nsfw"><img class="media" src="/proxy/{{post["url"]}}"></label>')
 url_template = SimpleTemplate('<a href="{{post["url"]}}">{{post["url"]}}</a>')
 subreddit_template = SimpleTemplate(
     '<a href="/{{post["subreddit_name_prefixed"]}}">{{post["subreddit_name_prefixed"]}}</a>')
@@ -56,10 +56,10 @@ user_link = SimpleTemplate(
     '<a href="/u/{{user}}"><span class="title link">u/{{user}}</span></a>')
 
 comment_template = SimpleTemplate(
-    '<li><a href="/u/{{comment["author"]}}">{{comment["author"]}}</a> at {{created}} <br>{{!text}}{{!replies}}</li>')
+    '<li><div class="comment"><a href="/u/{{comment["author"]}}">{{comment["author"]}}</a> at {{created}} <br>{{!text}}{{!replies}}</div></li>')
 
 reply_template = SimpleTemplate(
-    '<li><div class="comment"><a href="/u/{{comment["author"]}}">{{comment["author"]}}</a> at {{created}} <br>{{!text}}{{!replies}}</div></li>')
+    '<li><div class="reply"><a href="/u/{{comment["author"]}}">{{comment["author"]}}</a> at {{created}} <br>{{!text}}{{!replies}}</div></li>')
 
 menu = SimpleTemplate(
     '<a class="menu {{"focus" if option == o else ""}}" href="{{"/r/"+subreddit+"/" if subreddit else "/"}}{{o}}">{{o}} </a>')
