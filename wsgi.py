@@ -356,43 +356,16 @@ def proxy(url):
 
 
 @app.error(401)
+@app.error(403)
+@app.error(404)
 @app.error(405)
 @app.error(406)
+@app.error(451)
 @app.error(500)
 def error_redirect(error):
     fmt = default_fmt()
-    fmt["title"] = f"error {error.status_code}!"
-    fmt["content"] = f"<br><br><br><br><br><br><h1>{error.status_code}, error!\n</h1>"
-    header = generate_header()
-    return index_page.render(**fmt, header=header)
-
-
-@app.error(451)
-def error_legal(error):
-    e = "Unavailable for legal reasons!"
-    fmt = default_fmt()
-    fmt["title"] = e
-    fmt["content"] = f"<br><br><br><br><br><br><h1>{error.status_code}, {e}!\n</h1>"
-    header = generate_header()
-    return index_page.render(**fmt, header=header)
-
-
-@app.error(404)
-def error_not_found(error):
-    e = "Page not found!"
-    fmt = default_fmt()
-    fmt["title"] = e
-    fmt["content"] = f"<br><br><br><br><br><br><h1>{error.status_code}, {e}!\n</h1>"
-    header = generate_header()
-    return index_page.render(**fmt, header=header)
-
-
-@app.error(403)
-def error_forbidden(error):
-    e = "Forbidden!"
-    fmt = default_fmt()
-    fmt["title"] = e
-    fmt["content"] = f"<br><br><br><br><br><br><h1>{error.status_code}, {e}!\n</h1>"
+    fmt["title"] = f"{error.status}!"
+    fmt["content"] = f"<br><br><br><br><br><br><h1>{error.status}!\n</h1>"
     header = generate_header()
     return index_page.render(**fmt, header=header)
 
