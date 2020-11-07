@@ -177,7 +177,7 @@ def generate_subreddit_header(subreddit="", option=""):
     menu = ""
     link = ""
     if subreddit:
-        link += f'<a href="/r/{subreddit}"><span class="link">r/{subreddit}</span></a>'
+        link += f'<a href="/r/{subreddit}"><span class="title link">r/{subreddit}</span></a>'
     if option:
         menu += " | ".join(generate_subreddit_menu(o, option, subreddit)
                            for o in SUBREDDIT_OPTIONS)
