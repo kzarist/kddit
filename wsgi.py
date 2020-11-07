@@ -49,7 +49,7 @@ def get_created(data):
 
 @tpl
 def generate_subreddit_link(subreddit):
-    return f'<a href="/r/{subreddit}"><span class="title link">r/{subreddit}</span></a>'
+    return f'<a href="/r/{subreddit}">r/{subreddit}</a>'
 
 
 def xparse(text):
@@ -177,7 +177,7 @@ def generate_subreddit_header(subreddit="", option=""):
     menu = ""
     link = ""
     if subreddit:
-        link += generate_subreddit_link(subreddit)
+        link += f'<a href="/r/{subreddit}"><span class="link">r/{subreddit}</span></a>'
     if option:
         menu += " | ".join(generate_subreddit_menu(o, option, subreddit)
                            for o in SUBREDDIT_OPTIONS)
@@ -186,7 +186,7 @@ def generate_subreddit_header(subreddit="", option=""):
 
 def generate_user_header(user, option=""):
     menu = ""
-    link = f'<a href="/u/{user}"><span class="title link">u/{user}</span></a>'
+    link = f'<a href="/u/{user}"><span class="link">u/{user}</span></a>'
     if option:
         menu += " | ".join(generate_user_menu(o, option, user)
                            for o in USER_OPTIONS)
