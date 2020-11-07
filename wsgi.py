@@ -147,7 +147,7 @@ def generate_comments(data_list):
     comments = []
     for data in data_list:
         if data['kind'] == "more":
-            comments.append("...")
+            comments.append("<p>...</p>")
         else:
             comments.append(generate_comment(data))
     return f'<div class="comments">{"".join(comments)}</div>'
