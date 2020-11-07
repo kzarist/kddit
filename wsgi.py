@@ -1,122 +1,102 @@
-from bottle import Bottle, request, response, abort, redirect
-from bottle import SimpleTemplate, static_file
+from bottle import request, response, abort, redirect, static_file, view
+from bottle import Bottle, SimpleTemplate, BaseTemplate
 import requests
 import html
 import os
 from datetime import datetime, timezone
 from urllib.parse import urlparse
-
-
-def env(var):
-    try:
-        return request.environ[var]
-    except:
-        return ""
-
+from bs4 import BeautifulSoup
 
 app = Bottle()
+
+PROXY_ALLOW = ["i.redd.it", "v.redd.it", "b.thumbs.redditmedia.com"]
+DEFAULT_OPTION = "new"
+SUBREDDIT_OPTIONS = ["hot", "new", "rising", "controversial", "top"]
+USER_OPTIONS = ["overview", "comments", "submitted"]
+
+
 root = os.path.dirname(os.path.realpath(__file__))
-
-index_page = SimpleTemplate(open(f"{root}/templates/index.html").read())
-page_header = SimpleTemplate(open(f"{root}/templates/header.html").read())
-post_template = SimpleTemplate(open(f"{root}/templates/post.html").read())
-video_template = SimpleTemplate(
-    '<video class="media" controls poster="/proxy/{{post["thumbnail"]}}" preload="none" src="/proxy/{{post["media"]["reddit_video"]["fallback_url"]}}">')
-nsfw_video_template = SimpleTemplate(
-    '<video class="media" controls preload="none" src="/proxy/{{post["media"]["reddit_video"]["fallback_url"]}}"></video>'
-)
-
-image_template = SimpleTemplate('<img class="media" src="/proxy/{{post["url"]}}">')
-nsfw_image_template = SimpleTemplate(
-    '<label><input type="checkbox" class="nsfw"><img class="media" src="/proxy/{{post["url"]}}"></label>')
-url_template = SimpleTemplate('<a href="{{post["url"]}}">{{post["url"]}}</a>')
-subreddit_template = SimpleTemplate(
-    '<a href="/{{post["subreddit_name_prefixed"]}}">{{post["subreddit_name_prefixed"]}}</a>')
-text_template = SimpleTemplate('<div class="text">{{!text}}</div>')
-before_template = SimpleTemplate(
-    '<a class="button" href="{{subreddit+"/"}}{{option}}?count=25&before={{data["data"]["before"]}}">&lt;prev</a> | ')
-after_template = SimpleTemplate(
-    '<a class="button" href="{{subreddit+"/"}}{{option}}?count=25&after={{data["data"]["after"]}}">next&gt;</a>')
-single_comment_template = SimpleTemplate("""
-<li>
-    <div class="sub-header"><a href="{{comment["permalink"]}}">
-        <b>{{comment["link_title"]}}</b>
-    </a> by <a href="/u/{{comment["link_author"]}}">{{comment["link_author"]}}</a> at {{created}} in
-    <a href="/{{comment["subreddit_name_prefixed"]}}">
-        {{comment["subreddit_name_prefixed"]}}
-    </a>
-    </div>
-    {{!text}}
-</li>
-""")
-
-subreddit_link = SimpleTemplate(
-    '<a href="/r/{{subreddit}}"><span class="title link">r/{{subreddit}}</span></a>')
-user_link = SimpleTemplate(
-    '<a href="/u/{{user}}"><span class="title link">u/{{user}}</span></a>')
-
-comment_template = SimpleTemplate(
-    '<li><div class="comment"><a href="/u/{{comment["author"]}}">{{comment["author"]}}</a> at {{created}} <br>{{!text}}{{!replies}}</div></li>')
-
-reply_template = SimpleTemplate(
-    '<li><div class="reply"><a href="/u/{{comment["author"]}}">{{comment["author"]}}</a> at {{created}} <br>{{!text}}{{!replies}}</div></li>')
-
-menu = SimpleTemplate(
-    '<a class="menu {{"focus" if option == o else ""}}" href="{{"/r/"+subreddit+"/" if subreddit else "/"}}{{o}}">{{o}} </a>')
-
-user_menu = SimpleTemplate(
-    '<a class="menu {{"focus" if option == o else ""}}" href="/u/{{user}}/{{o}}">{{o}} </a>')
-
 headers = {
     "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:81.0) Gecko/20100101 Firefox/81.0"
 }
 
-subreddit_options = ["hot", "new", "rising", "controversial", "top"]
-user_options = ["overview", "comments", "submitted"]
-
-proxy_allow = ["i.redd.it", "v.redd.it", "b.thumbs.redditmedia.com"]
-
-
-def default_fmt():
-    return {
-        "host": env("HTTP_HOST"),
-        "prot": "https" if env("HTTPS") else "http"
-    }
+header_template = SimpleTemplate(open(f"{root}/templates/header.tpl").read())
+post_template = SimpleTemplate(open(f"{root}/templates/post.tpl").read())
+video_template = SimpleTemplate(open(f"{root}/templates/video.tpl").read())
+image_template = SimpleTemplate(open(f"{root}/templates/image.tpl").read())
+comment_template = SimpleTemplate(open(f"{root}/templates/comment.tpl").read())
+reply_template = SimpleTemplate(open(f"{root}/templates/reply.tpl").read())
+single_comment_template = SimpleTemplate(
+    open(f"{root}/templates/single_comment.tpl").read())
 
 
+def tpl(func):
+    BaseTemplate.defaults[func.__name__] = func
+    return func
+
+
+@tpl
+def xhtml():
+    response.content_type = "application/xhtml+xml"
+
+
+@tpl
 def get_created(data):
     return datetime.fromtimestamp(
         data["created"],
         timezone.utc).strftime("%d/%m/%y %H:%M")
 
 
+@tpl
+def generate_subreddit_link(subreddit):
+    return f'<a href="/r/{subreddit}"><span class="title link">r/{subreddit}</span></a>'
+
+
+def xparse(text):
+    soup = BeautifulSoup(html.unescape(text), "html.parser")
+    return soup.prettify()
+
+
+def generate_subreddit_menu(o, option, subreddit):
+    focus = " focus" if option == o else ""
+    sub = f"/r/{subreddit}" if subreddit else ""
+    return f'<a class="menu{focus}" href="{sub}/{o}">{o}</a>'
+
+
+def generate_user_menu(o, option, user):
+    focus = " focus" if option == o else ""
+    return f'<a class="menu {focus}" href="/u/{user}/{o}">{o}</a>'
+
+
+def generate_before_link(data, subreddit, option):
+    sub = f"/{subreddit}" if subreddit else ""
+    return f'<a href="{sub}/{option}?count=25&amp;before={data["data"]["before"]}">&lt;prev</a>'
+
+
+def generate_after_link(data, subreddit, option):
+    sub = f"/{subreddit}" if subreddit else ""
+    return f'<a href="{sub}/{option}?count=25&amp;after={data["data"]["after"]}">next&gt;</a>'
+
+
 def generate_post(post, full=False):
     if "crosspost_parent_list" in post:
         content = generate_post(post['crosspost_parent_list'][0], True)
     elif text := post["selftext_html"]:
-        content = text_template.render(text=html.unescape(text))
+        content = f'<div class="text">{xparse(text)}</div>'
     elif post["is_reddit_media_domain"]:
         if post["is_video"]:
-            if post["thumbnail"] == "nsfw":
-                content = nsfw_video_template.render(post=post)
-            else:
-                content = video_template.render(post=post)
+            content = video_template.render(post=post)
         else:
-            if full and post["thumbnail"] == "nsfw":
-                content = nsfw_image_template.render(post=post)
-            else:
-                content = image_template.render(post=post)
+            content = image_template.render(post=post, full=full)
     elif post["is_self"]:
         content = ""
     else:
-        content = url_template.render(post=post)
-    sub = subreddit_template.render(post=post) if full else ""
-    created = get_created(post)
+        url = post["url"]
+        content = f'<a href="{url}">{url}</a>'
     return post_template.render(
         post=post,
-        created=created,
-        subreddit_link=sub,
-        content=content)
+        content=content,
+        full=full)
 
 
 def generate_posts(data, full=False):
@@ -124,18 +104,16 @@ def generate_posts(data, full=False):
     for children in data["data"]["children"]:
         post = children["data"]
         posts.append(generate_post(post, full))
-    return '<hr>'.join(posts)
+    return "".join(posts)
 
 
-def generate_nav(data, subreddit, option):
-    nav = ""
+def generate_nav(data, subreddit="", option=None):
+    nav = []
     if data["data"]["before"]:
-        nav += before_template.render(data=data,
-                                      subreddit=subreddit, option=option)
+        nav.append(generate_before_link(data, subreddit, option))
     if data["data"]["after"]:
-        nav += after_template.render(data=data,
-                                     subreddit=subreddit, option=option)
-    return f"<hr><b>view more: {nav}</b>" if nav else ""
+        nav.append(generate_after_link(data, subreddit, option))
+    return f'<div class="nav">view more: {" | ".join(nav)}</div>' if nav else ""
 
 
 def generate_user_content(data_list):
@@ -147,7 +125,7 @@ def generate_user_content(data_list):
             content.append(generate_post(data["data"], True))
         else:
             print(data["kind"])
-    return "<hr>".join(content)
+    return "".join(content)
 
 
 def generate_comment(data, full=False):
@@ -172,18 +150,17 @@ def generate_comments(data_list):
             comments.append("...")
         else:
             comments.append(generate_comment(data))
-
-    return f'<hr><div class="comments">{"<hr>".join(comments)}</div>'
+    return f'<div class="comments">{"".join(comments)}</div>'
 
 
 def generate_replies(data):
     replies = []
     if data['kind'] == "more":
-        replies.append("...")
+        replies.append("<p>...</p>")
     elif data['data']['replies']:
         for children in data['data']['replies']['data']['children']:
             if children['kind'] == "more":
-                replies.append("...")
+                replies.append("<p>...</p>")
             else:
                 text = html.unescape(children["data"]["body_html"])
                 created = get_created(children["data"])
@@ -193,46 +170,34 @@ def generate_replies(data):
                         created=created,
                         text=text,
                         replies=generate_replies(children)))
-
     return f'<ul>{"".join(replies)}</ul>' if replies else ""
 
 
-def generate_header(subreddit="", option=""):
-    fmt = {}
-    fmt["host"] = env("HTTP_HOST")
-    fmt["prot"] = "https" if env("HTTPS") else "http"
-    fmt["title"] = "kddit"
-    fmt["url"] = "/"
-    fmt["subreddit"] = subreddit
-    extra = ""
+def generate_subreddit_header(subreddit="", option=""):
+    menu = ""
+    link = ""
     if subreddit:
-        extra += subreddit_link.render(subreddit=subreddit)
+        link += generate_subreddit_link(subreddit)
     if option:
-        extra += " | ".join(menu.render(o=o, option=option,
-                                        subreddit=subreddit) for o in subreddit_options)
-    fmt["extra"] = extra
-    return page_header.render(**fmt)
+        menu += " | ".join(generate_subreddit_menu(o, option, subreddit)
+                           for o in SUBREDDIT_OPTIONS)
+    return header_template.render(link=link, menu=menu)
 
 
 def generate_user_header(user, option=""):
-    fmt = {}
-    fmt["host"] = env("HTTP_HOST")
-    fmt["prot"] = "https" if env("HTTPS") else "http"
-    fmt["title"] = "kddit"
-    fmt["url"] = "/"
-    fmt["subreddit"] = user
-    extra = user_link.render(user=user)
+    menu = ""
+    link = f'<a href="/u/{user}"><span class="title link">u/{user}</span></a>'
     if option:
-        extra += " | ".join(user_menu.render(o=o, option=option, user=user)
-                            for o in user_options)
-    fmt["extra"] = extra
-    return page_header.render(**fmt)
+        menu += " | ".join(generate_user_menu(o, option, user)
+                           for o in USER_OPTIONS)
+    return header_template.render(link=link, menu=menu)
 
 
 @app.route("/", "GET")
 @app.route("/<option>", "GET")
+@view("index")
 def index(option=""):
-    if option and option not in subreddit_options:
+    if option and option not in SUBREDDIT_OPTIONS:
         return abort(404)
     r = requests.get(
         f"https://old.reddit.com/{option}.json",
@@ -242,10 +207,13 @@ def index(option=""):
     if r.status_code == 200:
         data = r.json()
         fmt = {}
-        fmt["header"] = generate_header(option=option or "hot")
+        fmt["header"] = generate_subreddit_header(
+            option=option or DEFAULT_OPTION)
         fmt["title"] = "kddit"
-        content = generate_posts(data, True) + generate_nav(data, "", option)
-        return index_page.render(**fmt, content=content)
+        fmt["content"] = generate_posts(data, True)
+        if nav := generate_nav(data, option=option):
+            fmt["nav"] = nav
+        return fmt
     else:
         return abort(r.status_code)
 
@@ -254,8 +222,9 @@ def index(option=""):
 @app.route("/r/<subreddit>/", "GET")
 @app.route("/r/<subreddit>/<option>", "GET")
 @app.route("/r/<subreddit>/<option>/", "GET")
+@view("index")
 def subreddit(subreddit, option=""):
-    if option and option not in subreddit_options:
+    if option and option not in SUBREDDIT_OPTIONS:
         return abort(404)
     r = requests.get(
         f"https://old.reddit.com/r/{subreddit}/{option}/.json",
@@ -264,23 +233,23 @@ def subreddit(subreddit, option=""):
         headers=headers)
     if r.status_code == 200:
         data = r.json()
-        url = f"r/{subreddit}"
+        sub = f"r/{subreddit}"
         fmt = {}
-        fmt["host"] = env("HTTP_HOST")
-        fmt["prot"] = "https" if env("HTTPS") else "http"
-        fmt["title"] = url
-        fmt["url"] = f"/{url}"
-        fmt["subreddit"] = url
-        fmt["header"] = generate_header(subreddit, option=option or "hot")
-        content = generate_posts(
-            data) + generate_nav(data, f"/r/{subreddit}", option)
-        return index_page.render(**fmt, content=content)
+        fmt["title"] = sub
+        fmt["header"] = generate_subreddit_header(
+            subreddit, option=option or DEFAULT_OPTION)
+        fmt["content"] = generate_posts(
+            data)
+        if nav := generate_nav(data, sub, option):
+            fmt["nav"] = nav
+        return fmt
     else:
         return abort(r.status_code)
 
 
 @app.route("/r/<subreddit>/comments/<post_id>/<path>/", "GET")
 @app.route("/r/<subreddit>/comments/<post_id>/<path>/<comment_id>/", "GET")
+@view("index")
 def subreddit(subreddit, post_id, path, comment_id=""):
     r = requests.get(
         f"https://old.reddit.com/r/{subreddit}/comments/{post_id}/{path}/{comment_id}.json",
@@ -291,16 +260,11 @@ def subreddit(subreddit, post_id, path, comment_id=""):
         data = r.json()
         post = data[0]["data"]["children"][0]["data"]
         comments = data[1]["data"]["children"]
-        url = f"r/{subreddit}"
         fmt = {}
-        fmt["host"] = env("HTTP_HOST")
-        fmt["prot"] = "https" if env("HTTPS") else "http"
-        fmt["url"] = f"/{url}"
         fmt["title"] = post["title"]
-        fmt["subreddit"] = url
         fmt["content"] = generate_post(post) + generate_comments(comments)
-        header = generate_header(subreddit)
-        return index_page.render(**fmt, header=header)
+        fmt["header"] = generate_subreddit_header(subreddit)
+        return fmt
     else:
         return abort(r.status_code)
 
@@ -313,8 +277,9 @@ def subreddit(subreddit, post_id, path, comment_id=""):
 @app.route("/user/<user>/<option>", "GET")
 @app.route("/u/<user>/<option>/", "GET")
 @app.route("/user/<user>/<option>/", "GET")
+@view("index")
 def user_page(user, option="overview"):
-    if option and option not in user_options:
+    if option and option not in USER_OPTIONS:
         return abort(404)
     r = requests.get(
         f"https://old.reddit.com/user/{user}/{option}/.json",
@@ -323,16 +288,11 @@ def user_page(user, option="overview"):
         headers=headers)
     if r.status_code == 200:
         data = r.json()
-        url = f"/u/{user}"
         fmt = {}
-        fmt["host"] = env("HTTP_HOST")
-        fmt["prot"] = "https" if env("HTTPS") else "http"
-        fmt["url"] = url
         fmt["title"] = f"{option} by {user}"
-        fmt["subreddit"] = url
         fmt["content"] = generate_user_content(data["data"]["children"])
-        header = generate_user_header(user, option)
-        return index_page.render(**fmt, header=header)
+        fmt["header"] = generate_user_header(user, option)
+        return fmt
     else:
         return abort(r.status_code)
 
@@ -345,7 +305,7 @@ def static(file):
 @app.route("/proxy/<url:path>")
 def proxy(url):
     uri = urlparse(url)
-    if uri.netloc not in proxy_allow:
+    if uri.netloc not in PROXY_ALLOW:
         return abort(403)
     r = requests.get(f"{url}", params=dict(request.query), headers=headers)
     if r.status_code == 200:
@@ -362,12 +322,14 @@ def proxy(url):
 @app.error(406)
 @app.error(451)
 @app.error(500)
+@app.error(503)
+@view("index")
 def error_redirect(error):
-    fmt = default_fmt()
+    fmt = {}
     fmt["title"] = f"{error.status}!"
-    fmt["content"] = f"<br><br><br><br><br><br><h1>{error.status}!\n</h1>"
-    header = generate_header()
-    return index_page.render(**fmt, header=header)
+    fmt["content"] = f"<br/><br/><br/><br/><br/><br/><h1>{error.status}!\n</h1>"
+    fmt["header"] = header_template.render()
+    return fmt
 
 
 application = app
