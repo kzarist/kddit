@@ -11,7 +11,7 @@ app = Bottle()
 
 PROXY_ALLOW = ["i.redd.it", "v.redd.it", "b.thumbs.redditmedia.com"]
 DEFAULT_OPTION = "new"
-SUBREDDIT_OPTIONS = ["hot", "new", "rising", "controversial", "top"]
+SUBREDDIT_OPTIONS = ["new", "hot", "top", "rising", "controversial"]
 USER_OPTIONS = ["overview", "comments", "submitted"]
 
 
@@ -26,8 +26,6 @@ video_template = SimpleTemplate(open(f"{root}/templates/video.tpl").read())
 image_template = SimpleTemplate(open(f"{root}/templates/image.tpl").read())
 comment_template = SimpleTemplate(open(f"{root}/templates/comment.tpl").read())
 reply_template = SimpleTemplate(open(f"{root}/templates/reply.tpl").read())
-single_comment_template = SimpleTemplate(
-    open(f"{root}/templates/single_comment.tpl").read())
 
 
 def tpl(func):
@@ -107,14 +105,6 @@ def generate_posts(data, full=False):
     return "".join(posts)
 
 
-def generate_nav(data, subreddit="", option=None):
-    nav = []
-    if data["data"]["before"]:
-        nav.append(generate_before_link(data, subreddit, option))
-    if data["data"]["after"]:
-        nav.append(generate_after_link(data, subreddit, option))
-    return f'<div class="nav">view more: {" | ".join(nav)}</div>' if nav else ""
-
 
 def generate_user_content(data_list):
     content = []
@@ -132,8 +122,8 @@ def generate_comment(data, full=False):
     text = html.unescape(data["data"]["body_html"])
     created = get_created(data["data"])
     if full:
-        return single_comment_template.render(
-            created=created, comment=data["data"], text=text)
+        return post_template.render(
+            created=created, post=data["data"], content=text, full=full)
     else:
         replies = generate_replies(data)
         return comment_template.render(
@@ -173,24 +163,34 @@ def generate_replies(data):
     return f'<ul>{"".join(replies)}</ul>' if replies else ""
 
 
-def generate_subreddit_header(subreddit="", option=""):
+
+def generate_nav(data, subreddit="", option=None, user=""):
     menu = ""
+    if data["data"]["before"]:
+        menu += generate_before_link(data, f"r/{subreddit}" if subreddit else f"u/{user}" if user else "", option or "") +"- <wbr/>"
+
+    if subreddit:
+        menu += " | ".join(generate_subreddit_menu(o, option, subreddit)
+            for o in SUBREDDIT_OPTIONS)
+    elif (not user and not subreddit):
+        menu += " | ".join(generate_subreddit_menu(o, option, subreddit)
+        for o in SUBREDDIT_OPTIONS)
+    elif user:
+        menu += " | ".join(generate_user_menu(o, option, user)
+                        for o in USER_OPTIONS)
+    if data["data"]["after"]:
+        menu += "<wbr/> -" + generate_after_link(data, f"r/{subreddit}" if subreddit else f"u/{user}" if user else "", option or "")
+    return f'<div class="nav">{menu}</div>' if menu else ""
+
+def generate_header(subreddit="", user=""):
     link = ""
     if subreddit:
         link += f'<a href="/r/{subreddit}"><span class="title link">r/{subreddit}</span></a>'
-    if option:
-        menu += " | ".join(generate_subreddit_menu(o, option, subreddit)
-                           for o in SUBREDDIT_OPTIONS)
-    return header_template.render(link=link, menu=menu)
-
-
-def generate_user_header(user, option=""):
-    menu = ""
-    link = f'<a href="/u/{user}"><span class="link">u/{user}</span></a>'
-    if option:
-        menu += " | ".join(generate_user_menu(o, option, user)
-                           for o in USER_OPTIONS)
-    return header_template.render(link=link, menu=menu)
+    elif (not subreddit and not user):
+        link = ""
+    elif user:
+        link = f'<a href="/u/{user}"><span class="link">u/{user}</span></a>'
+    return header_template.render(link=link)
 
 
 @app.route("/", "GET")
@@ -200,15 +200,14 @@ def index(option=""):
     if option and option not in SUBREDDIT_OPTIONS:
         return abort(404)
     r = requests.get(
-        f"https://old.reddit.com/{option}.json",
+        f"https://old.reddit.com/{option or DEFAULT_OPTION}.json",
         params=dict(
             request.query),
         headers=headers)
     if r.status_code == 200:
         data = r.json()
         fmt = {}
-        fmt["header"] = generate_subreddit_header(
-            option=option or DEFAULT_OPTION)
+        fmt["header"] = generate_header()
         fmt["title"] = "kddit"
         fmt["content"] = generate_posts(data, True)
         if nav := generate_nav(data, option=option):
@@ -236,11 +235,11 @@ def subreddit(subreddit, option=""):
         sub = f"r/{subreddit}"
         fmt = {}
         fmt["title"] = sub
-        fmt["header"] = generate_subreddit_header(
-            subreddit, option=option or DEFAULT_OPTION)
+        fmt["header"] = generate_header(
+            subreddit=subreddit)
         fmt["content"] = generate_posts(
             data)
-        if nav := generate_nav(data, sub, option):
+        if nav := generate_nav(data, subreddit=subreddit, option=option):
             fmt["nav"] = nav
         return fmt
     else:
@@ -263,7 +262,7 @@ def subreddit(subreddit, post_id, path, comment_id=""):
         fmt = {}
         fmt["title"] = post["title"]
         fmt["content"] = generate_post(post) + generate_comments(comments)
-        fmt["header"] = generate_subreddit_header(subreddit)
+        fmt["header"] = generate_header(subreddit=subreddit)
         return fmt
     else:
         return abort(r.status_code)
@@ -291,7 +290,9 @@ def user_page(user, option="overview"):
         fmt = {}
         fmt["title"] = f"{option} by {user}"
         fmt["content"] = generate_user_content(data["data"]["children"])
-        fmt["header"] = generate_user_header(user, option)
+        fmt["header"] = generate_header(user=user)
+        if nav := generate_nav(data, user=user, option=option):
+            fmt["nav"] = nav
         return fmt
     else:
         return abort(r.status_code)
@@ -333,3 +334,7 @@ def error_redirect(error):
 
 
 application = app
+
+
+
+

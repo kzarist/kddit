@@ -26,11 +26,15 @@ body {
     margin:0;
 }
 
-code {
+pre code {
     display:inline-block;
+    overflow:auto;
+    max-width:100%;
+}
+
+code {
     background-color:white;
     color:black;
-    word-break: break-all;
 }
 
 .header {
@@ -41,7 +45,16 @@ code {
 }
 
 .header > :first-child {
+    color:#FFE620;
     margin-left:5px;
+}
+
+.nav {
+    border-top: 1px solid white;
+    background-color:#000;
+    border-radius:0px;
+    text-align:center;
+    font-size:20px;
 }
 
 .sub-header {
@@ -50,35 +63,14 @@ code {
 
 }
 
-.content {
-    flex-grow: 1;
-    overflow: auto;
-    text-align:center;
-    background-size: contain;
-    background-repeat: no-repeat;
-    background-position: right;
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-}
 
-.content > :first-child {
-    margin-top:10px;
-}
-
-.content::-webkit-scrollbar {
-  display: none;
-}
-
-.nav {
-    margin:auto;
-}
 
 a {
     color:white;
     font-weight: bold;
     outline:none;
     text-decoration:none;
-    word-break:break-all;
+    word-break:break-word;
 }
 
 a:hover {
@@ -91,7 +83,6 @@ b {
 }
 
 .title {
-    color: white;
     display: inline-block;
     font-size: 20px;
     margin:5px;
@@ -139,12 +130,6 @@ textarea {
     background: #0C0C0C;
 }
 
-h1 {
-    text-align:center;
-    margin:10px 0;
-    color:#7352E6;
-}
-
 hr {
     border:0px;
 }
@@ -170,15 +155,11 @@ hr {
     background:grey;
     color:grey;
 }
+
+
 .spoiler:hover {
     color:white;
 }
-
-.media {
-    max-height: 80vh;
-    max-width:100%;
-}
-
 
 
 .order {
@@ -189,30 +170,57 @@ hr {
     color:orange;
 }
 
-
-.post hr {
-    border:1px solid white;
+.content {
+    flex-grow: 1;
+    overflow: auto;
+    text-align:center;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: right;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+    margin:0px 10px;
 }
 
-.post {
-    background-color:#282828;
-    padding:5px;
-    margin:auto;
-    margin-bottom:10px;
-    max-width:90vw;
+.content > :first-child {
+    margin-top:10px;
+}
+
+.content::-webkit-scrollbar {
+  display: none;
 }
 
 .comments {
     text-align:left;
-    margin:auto;
 }
 
 .comment {
     background-color:#282828;
-    max-width:90vw;
-    margin:auto;
+    padding:10px;
     margin-bottom:10px;
-    padding:5px;
+}
+
+
+.post hr {
+    border:1px solid #555;
+}
+
+.post {
+    max-width:100%;
+    background-color:#282828;
+    padding:10px;
+    padding-bottom:5px;
+    margin-bottom:10px;
+}
+
+.post-content {
+    margin:auto;
+    overflow:auto;
+}
+
+.media {
+    max-height: 80vh;
+    max-width: 100%;
 }
 
 .reply {
@@ -237,7 +245,7 @@ table, th, td {
 
 li {
     list-style-type: none;
-    margin:0;
+    margin:5px;
     padding:0;
 
 }

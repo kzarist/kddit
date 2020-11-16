@@ -7,6 +7,7 @@ Running
 ~~~
 $ uwsgi --ini app.ini
 ~~~
+requires python>=3.8
 
 Nginx config
 
