@@ -308,7 +308,7 @@ def user_page(user, option="overview"):
         return abort(r.status_code)
 
 
-@app.route("/static/<file>)")
+@app.route("/static/<file>")
 @app.route("/static/<file>/")
 def static(file):
     return static_file(file, root=f"{ROOT}/static")
