@@ -6,26 +6,32 @@ import os
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 from bs4 import BeautifulSoup
+import youtube_dl
 
 app = Bottle()
+ROOT = os.path.dirname(os.path.realpath(__file__))
 
-PROXY_ALLOW = ["i.redd.it", "v.redd.it", "b.thumbs.redditmedia.com"]
+PROXY_ALLOW = {
+    "image" : ["i.redd.it", "b.thumbs.redditmedia.com"],
+    "video" : [ "v.redd.it" ]
+}
+
 DEFAULT_OPTION = "new"
 SUBREDDIT_OPTIONS = ["new", "hot", "top", "rising", "controversial"]
 USER_OPTIONS = ["overview", "comments", "submitted"]
-
-
-root = os.path.dirname(os.path.realpath(__file__))
+FILE_PATH = f"{ROOT}/videos/"
 headers = {
     "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:81.0) Gecko/20100101 Firefox/81.0"
 }
 
-header_template = SimpleTemplate(open(f"{root}/templates/header.tpl").read())
-post_template = SimpleTemplate(open(f"{root}/templates/post.tpl").read())
-video_template = SimpleTemplate(open(f"{root}/templates/video.tpl").read())
-image_template = SimpleTemplate(open(f"{root}/templates/image.tpl").read())
-comment_template = SimpleTemplate(open(f"{root}/templates/comment.tpl").read())
-reply_template = SimpleTemplate(open(f"{root}/templates/reply.tpl").read())
+ydl = youtube_dl.YoutubeDL({'outtmpl': FILE_PATH+'%(id)s.%(ext)s'})
+
+header_template = SimpleTemplate(open(f"{ROOT}/templates/header.tpl").read())
+post_template = SimpleTemplate(open(f"{ROOT}/templates/post.tpl").read())
+video_template = SimpleTemplate(open(f"{ROOT}/templates/video.tpl").read())
+image_template = SimpleTemplate(open(f"{ROOT}/templates/image.tpl").read())
+comment_template = SimpleTemplate(open(f"{ROOT}/templates/comment.tpl").read())
+reply_template = SimpleTemplate(open(f"{ROOT}/templates/reply.tpl").read())
 
 
 def tpl(func):
@@ -196,6 +202,7 @@ def generate_header(subreddit="", user=""):
 
 @app.route("/", "GET")
 @app.route("/<option>", "GET")
+@app.route("/<option>/", "GET")
 @view("index")
 def index(option=""):
     if option and option not in SUBREDDIT_OPTIONS:
@@ -247,7 +254,9 @@ def subreddit(subreddit, option=""):
         return abort(r.status_code)
 
 
+@app.route("/r/<subreddit>/comments/<post_id>/<path>", "GET")
 @app.route("/r/<subreddit>/comments/<post_id>/<path>/", "GET")
+@app.route("/r/<subreddit>/comments/<post_id>/<path>/<comment_id>", "GET")
 @app.route("/r/<subreddit>/comments/<post_id>/<path>/<comment_id>/", "GET")
 @view("index")
 def subreddit(subreddit, post_id, path, comment_id=""):
@@ -299,15 +308,25 @@ def user_page(user, option="overview"):
         return abort(r.status_code)
 
 
-@app.route("/static/<file>")
+@app.route("/static/<file>)")
+@app.route("/static/<file>/")
 def static(file):
-    return static_file(file, root=f"{root}/static")
+    return static_file(file, root=f"{ROOT}/static")
+
+@app.route("/video/<url:path>")
+def video_proxy(url):
+    uri = urlparse(url)
+    if uri.netloc not in PROXY_ALLOW["video"]:
+        return abort(403)
+    with ydl:
+        result = ydl.extract_info(url, download=True)
+    return static_file(f'{result["id"]}.{result["ext"]}', root=FILE_PATH)
 
 
 @app.route("/proxy/<url:path>")
 def proxy(url):
     uri = urlparse(url)
-    if uri.netloc not in PROXY_ALLOW:
+    if uri.netloc not in PROXY_ALLOW["image"]:
         return abort(403)
     r = requests.get(f"{url}", params=dict(request.query), headers=headers)
     if r.status_code == 200:
