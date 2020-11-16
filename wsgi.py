@@ -58,9 +58,10 @@ def xparse(text):
 def generate_subreddit_menu(o, option, subreddit):
     focus = " focus" if option == o else ""
     sub = f"/r/{subreddit}" if subreddit else ""
-    return f'<a class="menu{focus}" href="{sub}/{o}">{o}</a>'
-
-
+    if not option and o == DEFAULT_OPTION:
+        return f'<a class="menu focus" href="{sub}/">{o}</a>'
+    else:
+        return f'<a class="menu{focus}" href="{sub}/{o}">{o}</a>'
 def generate_user_menu(o, option, user):
     focus = " focus" if option == o else ""
     return f'<a class="menu {focus}" href="/u/{user}/{o}">{o}</a>'
