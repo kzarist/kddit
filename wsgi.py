@@ -75,12 +75,12 @@ def generate_user_menu(o, option, user):
 
 def generate_before_link(data, subreddit, option):
     sub = f"/{subreddit}" if subreddit else ""
-    return f'<a href="{sub}/{option}?count=25&amp;before={data["data"]["before"]}">&lt;prev</a>'
+    return f'<a href="{sub}/{option}?count=25&amp;before={data["data"]["before"]}">&lt;prev-</a>'
 
 
 def generate_after_link(data, subreddit, option):
     sub = f"/{subreddit}" if subreddit else ""
-    return f'<a href="{sub}/{option}?count=25&amp;after={data["data"]["after"]}">next&gt;</a>'
+    return f'<a href="{sub}/{option}?count=25&amp;after={data["data"]["after"]}">-next&gt;</a>'
 
 
 def generate_post(post, full=False):
@@ -172,22 +172,22 @@ def generate_replies(data):
 
 
 def generate_nav(data, subreddit="", option=None, user=""):
-    menu = ""
-    if data["data"]["before"]:
-        menu += generate_before_link(data, f"r/{subreddit}" if subreddit else f"u/{user}" if user else "", option or "") +"- <wbr/>"
-
+    menu = []
+    buttons = []
     if subreddit:
-        menu += " | ".join(generate_subreddit_menu(o, option, subreddit)
-            for o in SUBREDDIT_OPTIONS)
+        menu = [generate_subreddit_menu(o, option, subreddit)
+            for o in SUBREDDIT_OPTIONS]
     elif (not user and not subreddit):
-        menu += " | ".join(generate_subreddit_menu(o, option, subreddit)
-        for o in SUBREDDIT_OPTIONS)
+        menu = [ generate_subreddit_menu(o, option, subreddit)
+        for o in SUBREDDIT_OPTIONS ]
     elif user:
-        menu += " | ".join(generate_user_menu(o, option, user)
-                        for o in USER_OPTIONS)
+        menu = [generate_user_menu(o, option, user)
+                        for o in USER_OPTIONS]
+    if data["data"]["before"]:
+        buttons.append(generate_before_link(data, f"r/{subreddit}" if subreddit else f"u/{user}" if user else "", option or ""))
     if data["data"]["after"]:
-        menu += "<wbr/> -" + generate_after_link(data, f"r/{subreddit}" if subreddit else f"u/{user}" if user else "", option or "")
-    return f'<div class="nav">{menu}</div>' if menu else ""
+        buttons.append(generate_after_link(data, f"r/{subreddit}" if subreddit else f"u/{user}" if user else "", option or ""))
+    return f'<div class="nav">{" | ".join(menu)}<br/>{" | ".join(buttons)}</div>' if menu else ""
 
 def generate_header(subreddit="", user=""):
     link = ""
