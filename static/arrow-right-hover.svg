@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet href="arrow-right-hover_files/arrow.css" type="text/css"?>
+<svg width="14px" height="20px" viewBox="0 0 14 20" xmlns="http://www.w3.org/2000/svg">
+  <path d="m 0,0 l 14,10 l -14,10 z" fill="orange"/>
+</svg>

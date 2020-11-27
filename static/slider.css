@@ -1,0 +1,258 @@
+/* mask the overflowing content, this will prevent scrollbars (optional) */
+.css-slider-mask {
+  display: block;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+  height:60vh;
+}
+
+/* base style for the slider, you can place or size as you like (optional) */
+.css-slider {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: none;
+  height: 100%;
+  z-index: 1;
+}
+
+/* inital trick to hide the slider from everyone */
+.css-slider {
+  position: relative;
+  display: none;
+}
+
+/* ... then a simple hack to only show for browsers that support :nth-child */
+body:nth-child(2) .css-slider {
+  display: block;
+}
+
+/* style the slides */
+.css-slider .slide {
+  display: block;
+  position: absolute;
+  left: 20px;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  padding-left: 0;
+  padding-right: 20px;
+  z-index: 100;
+  outline: 0; /* kill the focus rect! */
+}
+
+/* style the forward arrow */
+.css-slider .slide {
+  background: url('/static/arrow-right.svg') no-repeat right center;
+  background-size: 25px auto;
+}
+
+/* style the forward arrow hover state */
+.css-slider .slide:hover {
+  background-image: url('/static/arrow-right-hover.svg');
+  cursor: pointer;
+}
+
+/* reveal the focused slide, including last child for when there is no focus */
+.css-slider .slide:target,
+.css-slider .slide:target:hover,
+.css-slider .slide:focus,
+.css-slider .slide:focus:hover,
+.css-slider .slide:last-child,
+.css-slider .slide:last-child:hover {
+  left: 40px;
+  right: 40px;
+  padding-left: 0;
+  padding-right: 0;
+  background: transparent;
+  z-index: 101;
+  cursor: default;
+}
+
+/* affect slides that have been navigated past the current */
+.css-slider .slide:target ~ .slide,
+.css-slider .slide:focus ~ .slide {
+  padding-left: 40px;
+  padding-right: 0;
+  left: 0;
+  right: 40px;
+}
+
+/* style the previous arrow */
+.css-slider .slide:target ~ .slide,
+.css-slider .slide:focus ~ .slide {
+  background: url('/static/arrow-left.svg') no-repeat left center;
+  background-size: 25px auto;
+}
+
+/* style the previous arrow hover state */
+.css-slider .slide:target ~ .slide:hover,
+.css-slider .slide:focus ~ .slide:hover {
+  background-image: url('/static/arrow-left-hover.svg');
+}
+
+/* by default hide all slide contents, if animation is removed 
+   this is required to snap slides on or off */
+.css-slider .slide .slide-outer {
+  display: none;
+  width: 100%;
+  height: 100%;
+}
+
+/* slide-inner is purely used for centering of the slide,
+   using the table vertical center method. */
+.css-slider .slide .slide-outer .slide-inner {
+  display: table-cell;
+  vertical-align: middle;
+  text-align: center;
+  width: 100%;
+  height: 100%;
+}
+
+/* a wrapper that holds whatever you wish to put in your slide, 
+   needs inline-block to center properly */
+.css-slider .slide .slide-outer .slide-inner .slide-gfx {
+  position: relative;
+  display: inline-block;
+}
+
+/* for the focused or last child, show the slide contents */
+.css-slider .slide:target .slide-outer,
+.css-slider .slide:focus .slide-outer,
+.css-slider .slide:last-child .slide-outer {
+  display: block; /* if they don't support display table */
+  display: table;
+}
+
+/* override the last-child slide if a slide has been focused */
+.css-slider .slide:target ~ .slide:last-child,
+.css-slider .slide:focus ~ .slide:last-child {
+  cursor: pointer;
+}
+
+/* override the last-child slide contents if a slide has been focused */
+.css-slider .slide:target ~ .slide:last-child .slide-outer,
+.css-slider .slide:focus ~ .slide:last-child .slide-outer {
+  display: none;
+}
+
+/* make sure the slide graphics appear above everything else */
+.css-slider .slide .slide-outer .slide-gfx {
+  z-index: 102;
+  text-align: left; /* override the centering back to defaults */
+}
+
+/* annoyingly the only "required" arbitrary part of the css -- 
+   the following means the back arrow is supported for 
+   up to 20 slides. If you need more, just extend. 
+   This could be fixed if there was a selector like "~"
+   or "+" which would work backwards through siblings.
+   */
+.css-slider .slide:target ~ .slide:nth-child(1),
+.css-slider .slide:focus  ~ .slide:nth-child(1) { z-index:99; }
+.css-slider .slide:target ~ .slide:nth-child(2),
+.css-slider .slide:focus  ~ .slide:nth-child(2) { z-index:98; }
+.css-slider .slide:target ~ .slide:nth-child(3),
+.css-slider .slide:focus  ~ .slide:nth-child(3) { z-index:97; }
+.css-slider .slide:target ~ .slide:nth-child(4),
+.css-slider .slide:focus  ~ .slide:nth-child(4) { z-index:96; }
+.css-slider .slide:target ~ .slide:nth-child(5),
+.css-slider .slide:focus  ~ .slide:nth-child(5) { z-index:95; }
+.css-slider .slide:target ~ .slide:nth-child(6),
+.css-slider .slide:focus  ~ .slide:nth-child(6) { z-index:94; }
+.css-slider .slide:target ~ .slide:nth-child(7),
+.css-slider .slide:focus  ~ .slide:nth-child(7) { z-index:93; }
+.css-slider .slide:target ~ .slide:nth-child(8),
+.css-slider .slide:focus  ~ .slide:nth-child(8) { z-index:92; }
+.css-slider .slide:target ~ .slide:nth-child(9),
+.css-slider .slide:focus  ~ .slide:nth-child(9) { z-index:91; }
+.css-slider .slide:target ~ .slide:nth-child(10),
+.css-slider .slide:focus  ~ .slide:nth-child(10) { z-index:90; }
+.css-slider .slide:target ~ .slide:nth-child(11),
+.css-slider .slide:focus  ~ .slide:nth-child(11) { z-index:89; }
+.css-slider .slide:target ~ .slide:nth-child(12),
+.css-slider .slide:focus  ~ .slide:nth-child(12) { z-index:88; }
+.css-slider .slide:target ~ .slide:nth-child(13),
+.css-slider .slide:focus  ~ .slide:nth-child(13) { z-index:87; }
+.css-slider .slide:target ~ .slide:nth-child(14),
+.css-slider .slide:focus  ~ .slide:nth-child(14) { z-index:86; }
+.css-slider .slide:target ~ .slide:nth-child(15),
+.css-slider .slide:focus  ~ .slide:nth-child(15) { z-index:85; }
+.css-slider .slide:target ~ .slide:nth-child(16),
+.css-slider .slide:focus  ~ .slide:nth-child(16) { z-index:84; }
+.css-slider .slide:target ~ .slide:nth-child(17),
+.css-slider .slide:focus  ~ .slide:nth-child(17) { z-index:83; }
+.css-slider .slide:target ~ .slide:nth-child(18),
+.css-slider .slide:focus  ~ .slide:nth-child(18) { z-index:82; }
+.css-slider .slide:target ~ .slide:nth-child(19),
+.css-slider .slide:focus  ~ .slide:nth-child(19) { z-index:81; }
+.css-slider .slide:target ~ .slide:nth-child(20),
+.css-slider .slide:focus  ~ .slide:nth-child(20) { z-index:80; }
+
+/** --------------------------------------------------------------------------
+ * HANDLE THE SLIDE ANIMATION (optional)
+ * ------------------------------------------------------------------------ */
+
+/* Override the default instant slide behaviour */
+.css-slider .slide .slide-outer {
+  display: block !important;
+  display: table !important;
+}
+
+/* set up the transitions */
+.css-slider .slide .slide-outer {
+  -webkit-transition-property:        opacity, -wekbit-transform;
+  -moz-transition-property:           opacity, -moz-transform;
+  -ms-transition-property:            opacity, -ms-transform;
+  -o-transition-property:             opacity, -o-transform;
+  transition-property:                opacity, transform;
+  -webkit-transition-duration:        0.5s;
+  -moz-transition-duration:           0.5s;
+  -ms-transition-duration:            0.5s;
+  -o-transition-duration:             0.5s;
+  transition-duration:                0.5s;
+  -webkit-transition-timing-function: ease;
+  -moz-transition-timing-function:    ease;
+  -ms-transition-timing-function:     ease;
+  -o-transition-timing-function:      ease;
+  transition-timing-function:         ease;
+}
+
+/* After state */
+.css-slider .slide:target ~ .slide .slide-outer,
+.css-slider .slide:target ~ .slide:last-child .slide-outer,
+.css-slider .slide:focus ~ .slide .slide-outer,
+.css-slider .slide:focus ~ .slide:last-child .slide-outer {
+  -webkit-transform: translate(-150%,0); -webkit-transform: translate3D(-150%,0,0);
+  -moz-transform:    translate(-150%,0); -moz-transform:    translate3D(-150%,0,0);
+  -ms-transform:     translate(-150%,0); -ms-transform:     translate3D(-150%,0,0);
+  -o-transform:      translate(-150%,0); -o-transform:      translate3D(-150%,0,0);
+  transform:         translate(-150%,0); transform:         translate3D(-150%,0,0);
+}
+
+/* Before state */
+.css-slider .slide .slide-outer {
+  -webkit-transform: translate(200%,0); -webkit-transform: translate3D(200%,0,0);
+  -moz-transform:    translate(200%,0); -moz-transform:    translate3D(200%,0,0);
+  -ms-transform:     translate(200%,0); -ms-transform:     translate3D(200%,0,0);
+  -o-transform:      translate(200%,0); -o-transform:      translate3D(200%,0,0);
+  transform:         translate(200%,0); transform:         translate3D(200%,0,0);
+}
+
+/* Focused state*/
+.css-slider .slide:target .slide-outer,
+.css-slider .slide:focus .slide-outer,
+.css-slider .slide:last-child .slide-outer {
+  -webkit-transform: translate(0,0); -webkit-transform: translate3D(0,0,0);
+  -moz-transform:    translate(0,0); -moz-transform:    translate3D(0,0,0);
+  -ms-transform:     translate(0,0); -ms-transform:     translate3D(0,0,0);
+  -o-transform:      translate(0,0); -o-transform:      translate3D(0,0,0);
+  transform:         translate(0,0); transform:         translate3D(0,0,0);
+}
+
+.slider-img {
+    max-height:60vh;
+    max-width:100%;
+    display:block;
+}

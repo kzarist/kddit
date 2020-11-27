@@ -1,4 +1,4 @@
-youtube_dl
 requests
 bottle
+youtube_dl
 beautifulsoup4

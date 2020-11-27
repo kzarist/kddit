@@ -7,24 +7,42 @@ from datetime import datetime, timezone
 from urllib.parse import urlparse
 from bs4 import BeautifulSoup
 import youtube_dl
+from urllib.parse import urlparse, parse_qs
+
 
 app = Bottle()
 ROOT = os.path.dirname(os.path.realpath(__file__))
 
 PROXY_ALLOW = {
-    "image" : ["i.redd.it", "b.thumbs.redditmedia.com"],
-    "video" : [ "v.redd.it" ]
-}
+    "image": [
+        "i.redd.it",
+        "b.thumbs.redditmedia.com",
+        "preview.redd.it",
+        "i.ytimg.com"],
+    "video": [
+        "v.redd.it",
+        "youtu.be"],
+    "youtube": [
+        "www.youtube.com",
+        "m.youtube.com"]}
 
 DEFAULT_OPTION = "new"
 SUBREDDIT_OPTIONS = ["new", "hot", "top", "rising", "controversial"]
 USER_OPTIONS = ["overview", "comments", "submitted"]
 FILE_PATH = f"{ROOT}/videos/"
+
 headers = {
     "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:81.0) Gecko/20100101 Firefox/81.0"
 }
 
-ydl = youtube_dl.YoutubeDL({'outtmpl': FILE_PATH+'%(id)s.%(ext)s'})
+ydl_opts = {
+    'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4',
+    'merge-output-format': 'mp4',
+    'outtmpl': FILE_PATH + '%(id)s.%(ext)s'
+}
+
+
+ydl = youtube_dl.YoutubeDL(ydl_opts)
 
 header_template = SimpleTemplate(open(f"{ROOT}/templates/header.tpl").read())
 post_template = SimpleTemplate(open(f"{ROOT}/templates/post.tpl").read())
@@ -32,6 +50,9 @@ video_template = SimpleTemplate(open(f"{ROOT}/templates/video.tpl").read())
 image_template = SimpleTemplate(open(f"{ROOT}/templates/image.tpl").read())
 comment_template = SimpleTemplate(open(f"{ROOT}/templates/comment.tpl").read())
 reply_template = SimpleTemplate(open(f"{ROOT}/templates/reply.tpl").read())
+gallery_template = SimpleTemplate(open(f"{ROOT}/templates/gallery.tpl").read())
+
+BaseTemplate.defaults["unescape"] = html.unescape
 
 
 def tpl(func):
@@ -68,6 +89,8 @@ def generate_subreddit_menu(o, option, subreddit):
         return f'<a class="menu focus" href="{sub}/">{o}</a>'
     else:
         return f'<a class="menu{focus}" href="{sub}/{o}">{o}</a>'
+
+
 def generate_user_menu(o, option, user):
     focus = " focus" if option == o else ""
     return f'<a class="menu {focus}" href="/u/{user}/{o}">{o}</a>'
@@ -88,20 +111,69 @@ def generate_post(post, full=False):
         content = generate_post(post['crosspost_parent_list'][0], True)
     elif text := post["selftext_html"]:
         content = f'<div class="text">{xparse(text)}</div>'
+        if "poll_data" in post:
+            content += generate_poll(post)
     elif post["is_reddit_media_domain"]:
         if post["is_video"]:
             content = video_template.render(post=post)
         else:
             content = image_template.render(post=post, full=full)
+    elif "is_gallery" in post and post["media_metadata"]:
+        content = generate_gallery(post)
     elif post["is_self"]:
         content = ""
     else:
-        url = post["url"]
-        content = f'<a href="{url}">{url}</a>'
+        content = generate_content(post)
     return post_template.render(
         post=post,
         content=content,
         full=full)
+
+
+def generate_poll(post):
+    options = []
+    tvotes = post["poll_data"]["total_vote_count"]
+    for opt in post["poll_data"]["options"]:
+        if "vote_count" in opt:
+            votes = opt["vote_count"]
+            options.append(
+                f'<p>{opt["text"]} : {votes} votes</p><progress value="{votes}" max="{tvotes}"></progress>')
+        else:
+            options.append(
+                f'<p><input style="display:inline;" disabled="" type="radio"/>{opt["text"]}</p>')
+    return f'<div class="pool">{"".join(options)}</div>'
+
+
+def generate_gallery(post):
+    media = []
+    for m in post["media_metadata"]:
+        me = post["media_metadata"][m]["s"]
+        if "u" in me:
+            media.append(me["u"])
+    return gallery_template.render(media=media)
+
+
+def generate_content(post):
+    url = post["url"]
+    content = f'<a href="{url}">{url}</a><br/>'
+    uri = urlparse(url)
+    if (netloc := uri.netloc) in PROXY_ALLOW["youtube"]:
+        if "v" in (query := parse_qs(uri.query)):
+            if v := query["v"]:
+                u = f"https://youtu.be/{v[0]}"
+                content += video_template.render(url=u, thumbnail=u)
+    elif netloc in PROXY_ALLOW["video"]:
+        content += video_template.render(url=url, thumbnail=url)
+    return content
+
+
+def get_thumbnail(url):
+    try:
+        with ydl:
+            info = ydl.extract_info(url, download=False)
+            return info["thumbnail"]
+    except BaseException:
+        return ""
 
 
 def generate_posts(data, full=False):
@@ -112,7 +184,6 @@ def generate_posts(data, full=False):
     return "".join(posts)
 
 
-
 def generate_user_content(data_list):
     content = []
     for data in data_list:
@@ -120,8 +191,6 @@ def generate_user_content(data_list):
             content.append(generate_comment(data, True))
         elif data["kind"] == "t3":
             content.append(generate_post(data["data"], True))
-        else:
-            print(data["kind"])
     return "".join(content)
 
 
@@ -170,24 +239,32 @@ def generate_replies(data):
     return f'<ul>{"".join(replies)}</ul>' if replies else ""
 
 
-
 def generate_nav(data, subreddit="", option=None, user=""):
     menu = []
     buttons = []
     if subreddit:
         menu = [generate_subreddit_menu(o, option, subreddit)
-            for o in SUBREDDIT_OPTIONS]
+                for o in SUBREDDIT_OPTIONS]
     elif (not user and not subreddit):
-        menu = [ generate_subreddit_menu(o, option, subreddit)
-        for o in SUBREDDIT_OPTIONS ]
+        menu = [generate_subreddit_menu(o, option, subreddit)
+                for o in SUBREDDIT_OPTIONS]
     elif user:
         menu = [generate_user_menu(o, option, user)
-                        for o in USER_OPTIONS]
+                for o in USER_OPTIONS]
     if data["data"]["before"]:
-        buttons.append(generate_before_link(data, f"r/{subreddit}" if subreddit else f"u/{user}" if user else "", option or ""))
+        buttons.append(
+            generate_before_link(
+                data,
+                f"r/{subreddit}" if subreddit else f"u/{user}" if user else "",
+                option or ""))
     if data["data"]["after"]:
-        buttons.append(generate_after_link(data, f"r/{subreddit}" if subreddit else f"u/{user}" if user else "", option or ""))
+        buttons.append(
+            generate_after_link(
+                data,
+                f"r/{subreddit}" if subreddit else f"u/{user}" if user else "",
+                option or ""))
     return f'<div class="nav">{" | ".join(menu)}<br/>{" | ".join(buttons)}</div>' if menu else ""
+
 
 def generate_header(subreddit="", user=""):
     link = ""
@@ -313,6 +390,7 @@ def user_page(user, option="overview"):
 def static(file):
     return static_file(file, root=f"{ROOT}/static")
 
+
 @app.route("/video/<url:path>")
 def video_proxy(url):
     uri = urlparse(url)
@@ -326,9 +404,14 @@ def video_proxy(url):
 @app.route("/proxy/<url:path>")
 def proxy(url):
     uri = urlparse(url)
-    if uri.netloc not in PROXY_ALLOW["image"]:
+    if (netloc :=
+            uri.netloc) not in PROXY_ALLOW["image"] + PROXY_ALLOW["video"]:
         return abort(403)
-    r = requests.get(f"{url}", params=dict(request.query), headers=headers)
+    if netloc in PROXY_ALLOW["video"]:
+        u = get_thumbnail(url)
+    else:
+        u = url
+    r = requests.get(f"{u}", params=dict(request.query), headers=headers)
     if r.status_code == 200:
         response.set_header("content-type", r.headers["content-type"])
         return r.content
@@ -354,7 +437,3 @@ def error_redirect(error):
 
 
 application = app
-
-
-
-

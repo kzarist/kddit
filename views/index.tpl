@@ -6,6 +6,7 @@
   <head>
     <title>{{title}}</title>
     <link rel="stylesheet" type="text/css" href="/static/style.css"/>
+    <link rel="stylesheet" type="text/css" href="/static/slider.css"/>
     <link rel="icon" href="/static/favicon.svg" sizes="any" type="image/svg+xml"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <meta charset="UTF-8"/>
