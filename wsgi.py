@@ -19,13 +19,17 @@ PROXY_ALLOW = {
         "b.thumbs.redditmedia.com",
         "preview.redd.it",
         "i.ytimg.com",
-        "www.redditstatic.com"],
+        "www.redditstatic.com",
+        "i.imgur.com"],
     "video": [
         "v.redd.it",
         "youtu.be"],
     "youtube": [
         "www.youtube.com",
-        "m.youtube.com"]}
+        "m.youtube.com"],
+    "imgur": [
+        "i.imgur.com"]
+}
 
 DEFAULT_OPTION = "new"
 SUBREDDIT_OPTIONS = ["new", "hot", "top", "rising", "controversial", "gilded"]
@@ -135,7 +139,7 @@ def generate_post(post, full=False):
     elif post["is_self"]:
         content = ""
     else:
-        content = generate_content(post)
+        content = generate_content(post, full=full)
     return post_template.render(
         post=post,
         content=content,
@@ -166,7 +170,7 @@ def generate_gallery(post, full=False):
     return gallery_template.render(post=post, media=media, full=full)
 
 
-def generate_content(post):
+def generate_content(post, full=False):
     url = post["url"]
     content = f'<a href="{url}">{url}</a><br/>'
     uri = urlparse(url)
@@ -177,6 +181,11 @@ def generate_content(post):
                 content += video_template.render(url=u, thumbnail=u)
     elif netloc in PROXY_ALLOW["video"]:
         content += video_template.render(url=url, thumbnail=url)
+    elif netloc in PROXY_ALLOW["imgur"]:
+        if url.endswith(".gifv"):
+            content += video_template.render(url=url, thumbnail=url)
+        else:
+            content += image_template.render(post=post, url=url, full=full)
     return content
 
 
@@ -414,18 +423,27 @@ def static(file):
 @app.route("/video/<url:path>")
 def video_proxy(url):
     uri = urlparse(url)
-    if uri.netloc not in PROXY_ALLOW["video"]:
+    if (netloc := uri.netloc) in PROXY_ALLOW["video"]:   
+        with ydl:
+            result = ydl.extract_info(url, download=True)
+            return static_file(f'{result["id"]}.{result["ext"]}', root=FILE_PATH)
+    elif netloc in PROXY_ALLOW["imgur"]:
+        iurl = url.replace(".gifv", ".mp4")
+        r = requests.get(iurl, headers=headers)
+        if r.status_code == 200:
+            response.set_header("content-type", r.headers["content-type"])
+            return r.content
+        else:
+            return abort(r.status_code)
+    else:
         return abort(403)
-    with ydl:
-        result = ydl.extract_info(url, download=True)
-    return static_file(f'{result["id"]}.{result["ext"]}', root=FILE_PATH)
-
 
 @app.route("/proxy/<url:path>")
 def proxy(url):
     uri = urlparse(url)
     if (netloc :=
             uri.netloc) not in PROXY_ALLOW["image"] + PROXY_ALLOW["video"]:
+        print(url)
         return abort(403)
     if netloc in PROXY_ALLOW["video"]:
         u = get_thumbnail(url)
