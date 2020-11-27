@@ -18,7 +18,8 @@ PROXY_ALLOW = {
         "i.redd.it",
         "b.thumbs.redditmedia.com",
         "preview.redd.it",
-        "i.ytimg.com"],
+        "i.ytimg.com",
+        "www.redditstatic.com"],
     "video": [
         "v.redd.it",
         "youtu.be"],
@@ -27,9 +28,10 @@ PROXY_ALLOW = {
         "m.youtube.com"]}
 
 DEFAULT_OPTION = "new"
-SUBREDDIT_OPTIONS = ["new", "hot", "top", "rising", "controversial"]
-USER_OPTIONS = ["overview", "comments", "submitted"]
+SUBREDDIT_OPTIONS = ["new", "hot", "top", "rising", "controversial", "gilded"]
+USER_OPTIONS = ["overview", "comments", "submitted", "gilded"]
 FILE_PATH = f"{ROOT}/videos/"
+NOTHING = "<p>there doesn't seem to be anything here</p>"
 
 headers = {
     "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:81.0) Gecko/20100101 Firefox/81.0"
@@ -80,6 +82,16 @@ def generate_subreddit_link(subreddit):
 def xparse(text):
     soup = BeautifulSoup(html.unescape(text), "html.parser")
     return soup.prettify()
+
+
+@tpl
+def generate_awards(post):
+    awards = []
+    if "all_awardings" in post:
+        for award in post["all_awardings"]:
+            awards.append(
+                f'<a href="/{post["subreddit_name_prefixed"]}/gilded" class="awarding-icon" title="{award["name"]}"><img src="/proxy/{award["icon_url"]}"/> {award["count"]} </a>')
+    return "".join(awards)
 
 
 def generate_subreddit_menu(o, option, subreddit):
@@ -184,7 +196,7 @@ def generate_posts(data, full=False):
     return "".join(posts)
 
 
-def generate_user_content(data_list):
+def generate_mixed_content(data_list):
     content = []
     for data in data_list:
         if data["kind"] == "t1":
@@ -294,7 +306,11 @@ def index(option=""):
         fmt = {}
         fmt["header"] = generate_header()
         fmt["title"] = "kddit"
-        fmt["content"] = generate_posts(data, True)
+        if option == "gilded":
+            fmt["content"] = generate_mixed_content(
+                data["data"]["children"]) or NOTHING
+        else:
+            fmt["content"] = generate_posts(data, True) or NOTHING
         if nav := generate_nav(data, option=option):
             fmt["nav"] = nav
         return fmt
@@ -322,8 +338,11 @@ def subreddit(subreddit, option=""):
         fmt["title"] = sub
         fmt["header"] = generate_header(
             subreddit=subreddit)
-        fmt["content"] = generate_posts(
-            data)
+        if option == "gilded":
+            fmt["content"] = generate_mixed_content(
+                data["data"]["children"]) or NOTHING
+        else:
+            fmt["content"] = generate_posts(data) or NOTHING
         if nav := generate_nav(data, subreddit=subreddit, option=option):
             fmt["nav"] = nav
         return fmt
@@ -376,7 +395,7 @@ def user_page(user, option="overview"):
         data = r.json()
         fmt = {}
         fmt["title"] = f"{option} by {user}"
-        fmt["content"] = generate_user_content(data["data"]["children"])
+        fmt["content"] = generate_mixed_content(data["data"]["children"])
         fmt["header"] = generate_header(user=user)
         if nav := generate_nav(data, user=user, option=option):
             fmt["nav"] = nav
