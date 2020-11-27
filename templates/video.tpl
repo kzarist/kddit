@@ -1,4 +1,5 @@
 % if defined("post"):
+<a href="{{post["url"]}}">{{post["url"]}}</a><br/>
 % url = post["media"]["reddit_video"]["dash_url"]
 % end
 % if defined("thumbnail"):

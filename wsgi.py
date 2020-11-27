@@ -159,10 +159,11 @@ def generate_poll(post):
 def generate_gallery(post):
     media = []
     for m in post["media_metadata"]:
-        me = post["media_metadata"][m]["s"]
-        if "u" in me:
-            media.append(me["u"])
-    return gallery_template.render(media=media)
+        if "s" in post["media_metadata"][m]:
+            me = post["media_metadata"][m]["s"]
+            if "u" in me:
+                media.append(me["u"])
+    return gallery_template.render(post=post, media=media)
 
 
 def generate_content(post):

@@ -1,3 +1,4 @@
+<a href="{{post["url"]}}">{{post["url"]}}</a><br/>
 <div class="css-slider-mask">
   <ul class="css-slider with-responsive-images">
     % for m in media:

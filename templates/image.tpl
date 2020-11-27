@@ -1,3 +1,4 @@
+<a href="{{post["url"]}}">{{post["url"]}}</a><br/>
 % if post["thumbnail"] == "nsfw" and full:
 <label><input type="checkbox" class="nsfw"/><img class="media" src="/proxy/{{post["url"]}}"/></label>
 % else:
