@@ -300,8 +300,8 @@ p, h1, h2, h3 {
 }
 
 .nsfw + img {
-    -webkit-filter: blur(5px);  
-    filter: blur(5px);
+    -webkit-filter: blur(8px);  
+    filter: blur(8px);
 }
 
 .nsfw:checked + img {

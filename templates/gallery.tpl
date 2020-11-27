@@ -6,7 +6,11 @@
       <span class="slide-outer">
         <span class="slide-inner">
           <span class="slide-gfx">
+	    % if post["over_18"] and full:
+	    <label><input type="checkbox" class="nsfw"/><img class="slider-img" src="/proxy/{{unescape(m)}}"/></label>
+	    % else:
 	    <img class="slider-img" src="/proxy/{{unescape(m)}}" />
+	    % end
 	  </span>
 	</span>
       </span>

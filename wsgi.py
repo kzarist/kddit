@@ -131,7 +131,7 @@ def generate_post(post, full=False):
         else:
             content = image_template.render(post=post, full=full)
     elif "is_gallery" in post and post["media_metadata"]:
-        content = generate_gallery(post)
+        content = generate_gallery(post, full=full)
     elif post["is_self"]:
         content = ""
     else:
@@ -156,14 +156,14 @@ def generate_poll(post):
     return f'<div class="pool">{"".join(options)}</div>'
 
 
-def generate_gallery(post):
+def generate_gallery(post, full=False):
     media = []
     for m in post["media_metadata"]:
         if "s" in post["media_metadata"][m]:
             me = post["media_metadata"][m]["s"]
             if "u" in me:
                 media.append(me["u"])
-    return gallery_template.render(post=post, media=media)
+    return gallery_template.render(post=post, media=media, full=full)
 
 
 def generate_content(post):
