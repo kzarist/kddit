@@ -12,7 +12,8 @@
     <span class="flair">{{flair}}</span>
     % end
     <br/>
-    By <a href="/u/{{post['author']}}">u/{{post['author']}}</a> at {{get_created(post)}}<br/>
+    By <a href="/u/{{post['author']}}">u/{{post['author']}}</a>
+    {{get_time(post)}}<br/>
     {{!generate_awards(post)}}
   </div>
   <hr/>

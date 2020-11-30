@@ -3,15 +3,19 @@ from bottle import Bottle, SimpleTemplate, BaseTemplate
 import requests
 import html
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta
 from urllib.parse import urlparse
 from bs4 import BeautifulSoup
 import youtube_dl
 from urllib.parse import urlparse, parse_qs
-
+import timeago
 
 app = Bottle()
 ROOT = os.path.dirname(os.path.realpath(__file__))
+
+app.config.load_config(f"{ROOT}/app.ini")
+
+TIMESHIFT = int(app.config["kddit.timeshift"])
 
 PROXY_ALLOW = {
     "image": [
@@ -72,10 +76,11 @@ def xhtml():
 
 
 @tpl
-def get_created(data):
-    return datetime.fromtimestamp(
-        data["created"],
-        timezone.utc).strftime("%d/%m/%y %H:%M")
+def get_time(data):
+    date = datetime.fromtimestamp(
+        data["created"]) - timedelta(hours=TIMESHIFT)
+    now = datetime.now() 
+    return timeago.format(date, now)
 
 
 @tpl
@@ -220,15 +225,13 @@ def generate_mixed_content(data_list):
 
 def generate_comment(data, full=False):
     text = html.unescape(data["data"]["body_html"])
-    created = get_created(data["data"])
     if full:
         return post_template.render(
-            created=created, post=data["data"], content=text, full=full)
+            post=data["data"], content=text, full=full)
     else:
         replies = generate_replies(data)
         return comment_template.render(
             comment=data["data"],
-            created=created,
             text=text,
             replies=replies)
 
@@ -253,11 +256,9 @@ def generate_replies(data):
                 replies.append("<p>...</p>")
             else:
                 text = html.unescape(children["data"]["body_html"])
-                created = get_created(children["data"])
                 replies.append(
                     reply_template.render(
                         comment=children["data"],
-                        created=created,
                         text=text,
                         replies=generate_replies(children)))
     return f'<ul>{"".join(replies)}</ul>' if replies else ""
