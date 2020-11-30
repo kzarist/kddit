@@ -219,7 +219,7 @@ hr {
 
 .post {
     max-width:100%;
-    background-color:#171717;
+    background-color:#282828;
     padding:10px;
     padding-bottom:5px;
     margin-bottom:10px;
@@ -277,6 +277,13 @@ ul {
     margin:0;
     padding:0;
     margin-left: 5px;
+}
+
+blockquote {
+    color: #333;
+    border-left: 3px solid #333;
+    margin-left: 0px;
+    padding-left: 15px;
 }
 
 .comments table, th, td {
