@@ -49,17 +49,9 @@ code {
     margin-left:5px;
 }
 
-.nav {
-    border-top: 1px solid #ffef99;555
-    border-radius:0px;
-    text-align:center;
-    font-size:20px;
-}
-
 .sub-header {
     display:inline-block;
     margin-bottom:5px;
-
 }
 
 .awarding-icon {
@@ -100,6 +92,7 @@ a:hover {
     margin-right:0px;
     font-weight: bold;
     color:#7154AA;
+    vertical-align:middle;
 }
 
 .title:hover {
@@ -265,11 +258,15 @@ table, th, td {
     margin-bottom:10px;
 }
 
-li {
+.comments ul > li, .reply ul > li {
     list-style-type: none;
     margin:5px;
     padding:0;
 
+}
+
+li li {
+    list-style-type:lower-alpha;
 }
 
 ul {
@@ -280,7 +277,7 @@ ul {
 }
 
 blockquote {
-    color: #333;
+    color: #888;
     border-left: 3px solid #333;
     margin-left: 0px;
     padding-left: 15px;
@@ -316,3 +313,13 @@ p, h1, h2, h3 {
     filter: none;
 }
 
+.menu, .nav {
+    margin-bottom:10px;
+}
+
+.menu a, .nav a {
+    font-size:small;
+    border-bottom:1px solid;
+    border-radius:0px;
+    padding:2px;
+}

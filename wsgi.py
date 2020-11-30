@@ -10,6 +10,7 @@ import youtube_dl
 from urllib.parse import urlparse, parse_qs
 import timeago
 
+
 app = Bottle()
 ROOT = os.path.dirname(os.path.realpath(__file__))
 
@@ -38,6 +39,15 @@ PROXY_ALLOW = {
 DEFAULT_OPTION = "new"
 SUBREDDIT_OPTIONS = ["new", "hot", "top", "rising", "controversial", "gilded"]
 USER_OPTIONS = ["overview", "comments", "submitted", "gilded"]
+EXPANDED_OPTIONS = ["top", "controversial"]
+TIME_OPTIONS = {
+    "hour": "now",
+    "day": "today",
+    "week": "this week",
+    "month": "this month",
+    "year": "this year",
+    "all": "all time"
+}
 FILE_PATH = f"{ROOT}/videos/"
 NOTHING = "<p>there doesn't seem to be anything here</p>"
 
@@ -79,7 +89,7 @@ def xhtml():
 def get_time(data):
     date = datetime.fromtimestamp(
         data["created"]) - timedelta(hours=TIMESHIFT)
-    now = datetime.now() 
+    now = datetime.now()
     return timeago.format(date, now)
 
 
@@ -104,27 +114,27 @@ def generate_awards(post):
 
 
 def generate_subreddit_menu(o, option, subreddit):
-    focus = " focus" if option == o else ""
+    focus = 'class="focus" ' if option == o else ""
     sub = f"/r/{subreddit}" if subreddit else ""
     if not option and o == DEFAULT_OPTION:
-        return f'<a class="menu focus" href="{sub}/">{o}</a>'
+        return f'<a class="focus" href="{sub}/">{o}</a>'
     else:
-        return f'<a class="menu{focus}" href="{sub}/{o}">{o}</a>'
+        return f'<a {focus}href="{sub}/{o}">{o}</a>'
 
 
 def generate_user_menu(o, option, user):
-    focus = " focus" if option == o else ""
-    return f'<a class="menu {focus}" href="/u/{user}/{o}">{o}</a>'
+    focus = 'class="focus" ' if option == o else ""
+    return f'<a {focus} href="/u/{user}/{o}">{o}</a>'
 
 
 def generate_before_link(data, subreddit, option):
     sub = f"/{subreddit}" if subreddit else ""
-    return f'<a href="{sub}/{option}?count=25&amp;before={data["data"]["before"]}">&lt;prev-</a>'
+    return f'<a href="{sub}/{option}?count=25&amp;before={data["data"]["before"]}">&lt;prev</a>'
 
 
 def generate_after_link(data, subreddit, option):
     sub = f"/{subreddit}" if subreddit else ""
-    return f'<a href="{sub}/{option}?count=25&amp;after={data["data"]["after"]}">-next&gt;</a>'
+    return f'<a href="{sub}/{option}?count=25&amp;after={data["data"]["after"]}">next&gt;</a>'
 
 
 def generate_post(post, full=False):
@@ -134,7 +144,7 @@ def generate_post(post, full=False):
         content = f'<div class="text">{xparse(text)}</div>'
         if "poll_data" in post:
             content += generate_poll(post)
-    elif post["is_reddit_media_domain"]:
+    elif post["is_reddit_media_domain"] and post["thumbnail"]:
         if post["is_video"]:
             content = video_template.render(post=post)
         else:
@@ -155,7 +165,7 @@ def generate_poll(post):
     options = []
     tvotes = post["poll_data"]["total_vote_count"]
     for opt in post["poll_data"]["options"]:
-        if "vote_count" in opt:
+        if "vowwte_count" in opt:
             votes = opt["vote_count"]
             options.append(
                 f'<p>{opt["text"]} : {votes} votes</p><progress value="{votes}" max="{tvotes}"></progress>')
@@ -265,17 +275,7 @@ def generate_replies(data):
 
 
 def generate_nav(data, subreddit="", option=None, user=""):
-    menu = []
     buttons = []
-    if subreddit:
-        menu = [generate_subreddit_menu(o, option, subreddit)
-                for o in SUBREDDIT_OPTIONS]
-    elif (not user and not subreddit):
-        menu = [generate_subreddit_menu(o, option, subreddit)
-                for o in SUBREDDIT_OPTIONS]
-    elif user:
-        menu = [generate_user_menu(o, option, user)
-                for o in USER_OPTIONS]
     if data["data"]["before"]:
         buttons.append(
             generate_before_link(
@@ -288,7 +288,11 @@ def generate_nav(data, subreddit="", option=None, user=""):
                 data,
                 f"r/{subreddit}" if subreddit else f"u/{user}" if user else "",
                 option or ""))
-    return f'<div class="nav">{" | ".join(menu)}<br/>{" | ".join(buttons)}</div>' if menu else ""
+    return f'<div class="nav">{" ".join(buttons)}</div>' if buttons else ""
+
+
+def generate_menu(items):
+    return f'<div class="menu">{" ".join(items)}</div>'
 
 
 def generate_header(subreddit="", user=""):
@@ -302,6 +306,13 @@ def generate_header(subreddit="", user=""):
     return header_template.render(link=link)
 
 
+def generate_expanded_menu(subreddit, option, t=None):
+    items = [
+        f'<a href="{"/r/" + subreddit if subreddit else ""}/{option}?t={i}">{v}</a>' for i,
+        v in TIME_OPTIONS.items()]
+    return f'<details><summary>{TIME_OPTIONS[t or "day"]}</summary>{"<br/>".join(items)}</details>'
+
+
 @app.route("/", "GET")
 @app.route("/<option>", "GET")
 @app.route("/<option>/", "GET")
@@ -309,23 +320,29 @@ def generate_header(subreddit="", user=""):
 def index(option=""):
     if option and option not in SUBREDDIT_OPTIONS:
         return abort(404)
+    query = dict(request.query)
     r = requests.get(
         f"https://old.reddit.com/{option or DEFAULT_OPTION}.json",
-        params=dict(
-            request.query),
+        params=query,
         headers=headers)
     if r.status_code == 200:
         data = r.json()
         fmt = {}
         fmt["header"] = generate_header()
         fmt["title"] = "kddit"
+        fmt["content"] = generate_menu([generate_subreddit_menu(o, option, None)
+                                        for o in SUBREDDIT_OPTIONS])
+        if option in EXPANDED_OPTIONS:
+            fmt["content"] += generate_expanded_menu("",
+                                                     option or DEFAULT_OPTION,
+                                                     query["t"] if "t" in query else None)
         if option == "gilded":
-            fmt["content"] = generate_mixed_content(
+            fmt["content"] += generate_mixed_content(
                 data["data"]["children"]) or NOTHING
         else:
-            fmt["content"] = generate_posts(data, True) or NOTHING
+            fmt["content"] += generate_posts(data, True) or NOTHING
         if nav := generate_nav(data, option=option):
-            fmt["nav"] = nav
+            fmt["content"] += nav
         return fmt
     else:
         return abort(r.status_code)
@@ -336,13 +353,13 @@ def index(option=""):
 @app.route("/r/<subreddit>/<option>", "GET")
 @app.route("/r/<subreddit>/<option>/", "GET")
 @view("index")
-def subreddit(subreddit, option=""):
+def subreddit_page(subreddit, option=""):
     if option and option not in SUBREDDIT_OPTIONS:
         return abort(404)
+    query = dict(request.query)
     r = requests.get(
         f"https://old.reddit.com/r/{subreddit}/{option}/.json",
-        params=dict(
-            request.query),
+        params=query,
         headers=headers)
     if r.status_code == 200:
         data = r.json()
@@ -351,13 +368,18 @@ def subreddit(subreddit, option=""):
         fmt["title"] = sub
         fmt["header"] = generate_header(
             subreddit=subreddit)
+        fmt["content"] = generate_menu([generate_subreddit_menu(
+            o, option, subreddit) for o in SUBREDDIT_OPTIONS])
+        if option in EXPANDED_OPTIONS:
+            fmt["content"] += generate_expanded_menu(
+                subreddit, option or DEFAULT_OPTION, query["t"] if "t" in query else None)
         if option == "gilded":
-            fmt["content"] = generate_mixed_content(
+            fmt["content"] += generate_mixed_content(
                 data["data"]["children"]) or NOTHING
         else:
-            fmt["content"] = generate_posts(data) or NOTHING
+            fmt["content"] += generate_posts(data) or NOTHING
         if nav := generate_nav(data, subreddit=subreddit, option=option):
-            fmt["nav"] = nav
+            fmt["content"] += nav
         return fmt
     else:
         return abort(r.status_code)
@@ -408,10 +430,12 @@ def user_page(user, option="overview"):
         data = r.json()
         fmt = {}
         fmt["title"] = f"{option} by {user}"
-        fmt["content"] = generate_mixed_content(data["data"]["children"])
+        fmt["content"] = generate_menu([generate_user_menu(o, option, user)
+                                        for o in USER_OPTIONS])
+        fmt["content"] += generate_mixed_content(data["data"]["children"])
         fmt["header"] = generate_header(user=user)
         if nav := generate_nav(data, user=user, option=option):
-            fmt["nav"] = nav
+            fmt["content"] += nav
         return fmt
     else:
         return abort(r.status_code)
@@ -426,10 +450,12 @@ def static(file):
 @app.route("/video/<url:path>")
 def video_proxy(url):
     uri = urlparse(url)
-    if (netloc := uri.netloc) in PROXY_ALLOW["video"]:   
+    if (netloc := uri.netloc) in PROXY_ALLOW["video"]:
         with ydl:
             result = ydl.extract_info(url, download=True)
-            return static_file(f'{result["id"]}.{result["ext"]}', root=FILE_PATH)
+            return static_file(
+                f'{result["id"]}.{result["ext"]}',
+                root=FILE_PATH)
     elif netloc in PROXY_ALLOW["imgur"]:
         iurl = url.replace(".gifv", ".mp4")
         r = requests.get(iurl, headers=headers)
@@ -440,6 +466,7 @@ def video_proxy(url):
             return abort(r.status_code)
     else:
         return abort(403)
+
 
 @app.route("/proxy/<url:path>")
 def proxy(url):

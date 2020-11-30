@@ -18,8 +18,5 @@
     <div class="content">
       {{!content}}
     </div>
-    % if defined("nav"):
-    {{!nav}}
-    % end
   </body>
 </html>
