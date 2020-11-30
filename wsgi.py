@@ -167,6 +167,8 @@ def generate_gallery(post, full=False):
             me = post["media_metadata"][m]["s"]
             if "u" in me:
                 media.append(me["u"])
+            elif "gif" in me:
+                media.append(me["gif"])
     return gallery_template.render(post=post, media=media, full=full)
 
 
