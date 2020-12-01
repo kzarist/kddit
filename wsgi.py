@@ -127,14 +127,18 @@ def generate_user_menu(o, option, user):
     return f'<a {focus} href="/u/{user}/{o}">{o}</a>'
 
 
-def generate_before_link(data, subreddit, option):
+def generate_before_link(data, subreddit, option, t=None):
     sub = f"/{subreddit}" if subreddit else ""
-    return f'<a href="{sub}/{option}?count=25&amp;before={data["data"]["before"]}">&lt;prev</a>'
+    time = f"t={t}&amp;" if t else ""
+    print(time)
+    return f'<a href="{sub}/{option}?{time}count=25&amp;before={data["data"]["before"]}">&lt;prev</a>'
 
 
-def generate_after_link(data, subreddit, option):
+def generate_after_link(data, subreddit, option, t=None):
     sub = f"/{subreddit}" if subreddit else ""
-    return f'<a href="{sub}/{option}?count=25&amp;after={data["data"]["after"]}">next&gt;</a>'
+    time = f"t={t}&amp;" if t else ""
+    print(time)
+    return f'<a href="{sub}/{option}?{time}count=25&amp;after={data["data"]["after"]}">next&gt;</a>'
 
 
 def generate_post(post, full=False):
@@ -274,20 +278,20 @@ def generate_replies(data):
     return f'<ul>{"".join(replies)}</ul>' if replies else ""
 
 
-def generate_nav(data, subreddit="", option=None, user=""):
+def generate_nav(data, subreddit="", option=None, user="", t=None):
     buttons = []
     if data["data"]["before"]:
         buttons.append(
             generate_before_link(
                 data,
                 f"r/{subreddit}" if subreddit else f"u/{user}" if user else "",
-                option or ""))
+                option or "", t))
     if data["data"]["after"]:
         buttons.append(
             generate_after_link(
                 data,
                 f"r/{subreddit}" if subreddit else f"u/{user}" if user else "",
-                option or ""))
+                option or "", t))
     return f'<div class="nav">{" ".join(buttons)}</div>' if buttons else ""
 
 
@@ -321,6 +325,7 @@ def index(option=""):
     if option and option not in SUBREDDIT_OPTIONS:
         return abort(404)
     query = dict(request.query)
+    t = query["t"] if "t" in query else None
     r = requests.get(
         f"https://old.reddit.com/{option or DEFAULT_OPTION}.json",
         params=query,
@@ -334,14 +339,13 @@ def index(option=""):
                                         for o in SUBREDDIT_OPTIONS])
         if option in EXPANDED_OPTIONS:
             fmt["content"] += generate_expanded_menu("",
-                                                     option or DEFAULT_OPTION,
-                                                     query["t"] if "t" in query else None)
+                                                     option or DEFAULT_OPTION, t)
         if option == "gilded":
             fmt["content"] += generate_mixed_content(
                 data["data"]["children"]) or NOTHING
         else:
             fmt["content"] += generate_posts(data, True) or NOTHING
-        if nav := generate_nav(data, option=option):
+        if nav := generate_nav(data, option=option, t=t):
             fmt["content"] += nav
         return fmt
     else:
@@ -357,6 +361,7 @@ def subreddit_page(subreddit, option=""):
     if option and option not in SUBREDDIT_OPTIONS:
         return abort(404)
     query = dict(request.query)
+    t = query["t"] if "t" in query else None
     r = requests.get(
         f"https://old.reddit.com/r/{subreddit}/{option}/.json",
         params=query,
@@ -372,13 +377,13 @@ def subreddit_page(subreddit, option=""):
             o, option, subreddit) for o in SUBREDDIT_OPTIONS])
         if option in EXPANDED_OPTIONS:
             fmt["content"] += generate_expanded_menu(
-                subreddit, option or DEFAULT_OPTION, query["t"] if "t" in query else None)
+                subreddit, option or DEFAULT_OPTION, t)
         if option == "gilded":
             fmt["content"] += generate_mixed_content(
                 data["data"]["children"]) or NOTHING
         else:
             fmt["content"] += generate_posts(data) or NOTHING
-        if nav := generate_nav(data, subreddit=subreddit, option=option):
+        if nav := generate_nav(data, subreddit=subreddit, option=option, t=t):
             fmt["content"] += nav
         return fmt
     else:
@@ -434,7 +439,7 @@ def user_page(user, option="overview"):
                                         for o in USER_OPTIONS])
         fmt["content"] += generate_mixed_content(data["data"]["children"])
         fmt["header"] = generate_header(user=user)
-        if nav := generate_nav(data, user=user, option=option):
+        if nav := generate_nav(data, user=user, option=option, t=t):
             fmt["content"] += nav
         return fmt
     else:
