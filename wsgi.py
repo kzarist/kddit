@@ -109,7 +109,7 @@ def generate_awards(post):
     if "all_awardings" in post:
         for award in post["all_awardings"]:
             awards.append(
-                f'<a href="/{post["subreddit_name_prefixed"]}/gilded" class="awarding-icon" title="{award["name"]}"><img src="/proxy/{award["icon_url"]}"/> {award["count"]} </a>')
+                f'<a href="/{post["subreddit_name_prefixed"]}/gilded" class="awarding-icon" title="{html.escape(award["name"])}"><img src="/proxy/{award["icon_url"]}"/> {award["count"]} </a>')
     return "".join(awards)
 
 
