@@ -428,10 +428,11 @@ def subreddit(subreddit, post_id, path, comment_id=""):
 def user_page(user, option="overview"):
     if option and option not in USER_OPTIONS:
         return abort(404)
+    query = dict(request.query)
+    t = query["t"] if "t" in query else None
     r = requests.get(
         f"https://old.reddit.com/user/{user}/{option}/.json",
-        params=dict(
-            request.query),
+        query),
         headers=headers)
     if r.status_code == 200:
         data = r.json()
