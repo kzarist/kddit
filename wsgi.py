@@ -28,8 +28,10 @@ PROXY_ALLOW = {
         "i.imgur.com"],
     "video": [
         "v.redd.it",
-        "youtu.be"],
+        "youtu.be",
+        "gfycat.com"],
     "youtube": [
+        "youtu.be",
         "www.youtube.com",
         "m.youtube.com"],
     "imgur": [
@@ -130,14 +132,12 @@ def generate_user_menu(o, option, user):
 def generate_before_link(data, subreddit, option, t=None):
     sub = f"/{subreddit}" if subreddit else ""
     time = f"t={t}&amp;" if t else ""
-    print(time)
     return f'<a href="{sub}/{option}?{time}count=25&amp;before={data["data"]["before"]}">&lt;prev</a>'
 
 
 def generate_after_link(data, subreddit, option, t=None):
     sub = f"/{subreddit}" if subreddit else ""
     time = f"t={t}&amp;" if t else ""
-    print(time)
     return f'<a href="{sub}/{option}?{time}count=25&amp;after={data["data"]["after"]}">next&gt;</a>'
 
 
@@ -196,15 +196,17 @@ def generate_content(post, full=False):
     content = f'<a href="{url}">{url}</a><br/>'
     uri = urlparse(url)
     if (netloc := uri.netloc) in PROXY_ALLOW["youtube"]:
-        if "v" in (query := parse_qs(uri.query)):
+        if netloc in PROXY_ALLOW["video"]:
+            content += video_template.render(url=url, thumbnail=url)
+        elif "v" in (query := parse_qs(uri.query)):
             if v := query["v"]:
                 u = f"https://youtu.be/{v[0]}"
                 content += video_template.render(url=u, thumbnail=u)
     elif netloc in PROXY_ALLOW["video"]:
-        content += video_template.render(url=url, thumbnail=url)
+        content += video_template.render(url=url)
     elif netloc in PROXY_ALLOW["imgur"]:
         if url.endswith(".gifv"):
-            content += video_template.render(url=url, thumbnail=url)
+            content += video_template.render(url=url)
         else:
             content += image_template.render(post=post, url=url, full=full)
     return content
@@ -478,7 +480,6 @@ def proxy(url):
     uri = urlparse(url)
     if (netloc :=
             uri.netloc) not in PROXY_ALLOW["image"] + PROXY_ALLOW["video"]:
-        print(url)
         return abort(403)
     if netloc in PROXY_ALLOW["video"]:
         u = get_thumbnail(url)
