@@ -1,5 +1,4 @@
-timeago
-youtube_dl
 bottle
 requests
-beautifulsoup4
+youtube_dl
+timeago

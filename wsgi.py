@@ -5,7 +5,6 @@ import html
 import os
 from datetime import datetime, timedelta
 from urllib.parse import urlparse
-from bs4 import BeautifulSoup
 import youtube_dl
 from urllib.parse import urlparse, parse_qs
 import timeago
@@ -81,12 +80,6 @@ def tpl(func):
     BaseTemplate.defaults[func.__name__] = func
     return func
 
-
-@tpl
-def xhtml():
-    response.content_type = "application/xhtml+xml"
-
-
 @tpl
 def get_time(data):
     date = datetime.fromtimestamp(
@@ -101,9 +94,7 @@ def generate_subreddit_link(subreddit):
 
 
 def xparse(text):
-    soup = BeautifulSoup(html.unescape(text), "html.parser")
-    return soup.prettify()
-
+    return html.unescape(text)
 
 @tpl
 def generate_awards(post):
@@ -429,10 +420,9 @@ def user_page(user, option="overview"):
     if option and option not in USER_OPTIONS:
         return abort(404)
     query = dict(request.query)
-    t = query["t"] if "t" in query else None
     r = requests.get(
         f"https://old.reddit.com/user/{user}/{option}/.json",
-        query),
+        query,
         headers=headers)
     if r.status_code == 200:
         data = r.json()
@@ -442,7 +432,7 @@ def user_page(user, option="overview"):
                                         for o in USER_OPTIONS])
         fmt["content"] += generate_mixed_content(data["data"]["children"])
         fmt["header"] = generate_header(user=user)
-        if nav := generate_nav(data, user=user, option=option, t=t):
+        if nav := generate_nav(data, user=user, option=option):
             fmt["content"] += nav
         return fmt
     else:
