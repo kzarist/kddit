@@ -192,11 +192,11 @@ def generate_awards(post):
     return awards
 
 
-def generate_subreddit_menu(option, subreddit):
+def generate_subreddit_menu(option, subreddit, domain):
     links = ()
     for o in SUBREDDIT_OPTIONS:
         focus = option == o or (not option and o == DEFAULT_OPTION)
-        sub = f"/r/{subreddit}" if subreddit else ""
+        sub = f"/r/{subreddit}" if subreddit else f"/domain/{domain}" if domain else ""
         link = f"{sub}/{o}"
         if focus:
             a = html.a(href=link, Class="focus")(o)
@@ -227,8 +227,8 @@ def generate_before_link(data, subreddit, option, t=None):
     return a
 
 
-def generate_after_link(data, subreddit, option, t=None):
-    sub = f"/{subreddit}" if subreddit else ""
+def generate_after_link(data, target, option, t=None):
+    sub = f"/{target}" if target else ""
     time = f"t={t}&" if t else ""
     link = f'{sub}/{option}?{time}count=25&after={data["data"]["after"]}'
     a = html.a(href=link)("next>")
@@ -401,9 +401,15 @@ def generate_replies(data):
     return html.ul(replies) if replies else ""
 
 
-def generate_nav(data, subreddit=None, option=None, user="", t=None):
+def generate_nav(
+        data,
+        subreddit=None,
+        option=None,
+        user=None,
+        t=None,
+        domain=None):
     buttons = ()
-    target = f"r/{subreddit}" if subreddit else f"u/{user}" if user else ""
+    target = f"r/{subreddit}" if subreddit else f"u/{user}" if user else f"domain/{domain}" if domain else ""
     if data["data"]["before"]:
         buttons += (
             generate_before_link(
@@ -419,7 +425,7 @@ def generate_menu(items):
     return (html.div(Class="menu")(items),)
 
 
-def generate_header(subreddit="", user=""):
+def generate_header(subreddit=None, user=None, domain=None):
     header = (html.a(href="/")(html.span(Class="title")("kddit")),)
     if subreddit:
         header += (html.a(href=f"/r/{subreddit}")
@@ -427,6 +433,9 @@ def generate_header(subreddit="", user=""):
     elif user:
         header += (html.a(href=f"/u/{user}")
                    (html.span(Class="title link")(f"u/{user}")),)
+    elif domain:
+        header += (html.a(href=f"/domain/{domain}")
+                   (html.span(Class="title link")(domain)),)
     return header
 
 
@@ -447,22 +456,26 @@ def generate_expanded_menu(subreddit, option, t=None):
 @app.route("/r/<subreddit>/", "GET")
 @app.route("/r/<subreddit>/<option>", "GET")
 @app.route("/r/<subreddit>/<option>/", "GET")
-def subreddit_page(subreddit=None, option=None):
+@app.route("/domain/<domain>", "GET")
+@app.route("/domain/<domain>/", "GET")
+@app.route("/domain/<domain>/<option>", "GET")
+@app.route("/domain/<domain>/<option>/", "GET")
+def subreddit_page(subreddit=None, option=None, domain=None):
     if option and option not in SUBREDDIT_OPTIONS:
         return abort(404)
     query = dict(request.query)
     t = query["t"] if "t" in query else None
-    p = f"/r/{subreddit}" if subreddit else ""
+    p = f"/r/{subreddit}" if subreddit else f"/domain/{domain}" if domain else ""
     r = requests.get(
         f'https://old.reddit.com{p}/{option or DEFAULT_OPTION}.json',
         params=query,
         headers=headers)
     if r.status_code == 200:
         data = r.json()
-        title = f"r/{subreddit}" if subreddit else "kddit"
-        header = generate_header(subreddit=subreddit)
+        title = f"r/{subreddit}" if subreddit else domain or "kddit"
+        header = generate_header(subreddit=subreddit, domain=domain)
         content = ()
-        content += (generate_menu(generate_subreddit_menu(option, subreddit)))
+        content += (generate_menu(generate_subreddit_menu(option, subreddit, domain)))
         if option in EXPANDED_OPTIONS:
             content += (generate_expanded_menu(
                 subreddit, option or DEFAULT_OPTION, t),)
@@ -471,7 +484,12 @@ def subreddit_page(subreddit=None, option=None):
                 data["data"]["children"]) or NOTHING,)
         else:
             content += (generate_posts(data, not bool(subreddit)) or NOTHING,)
-        if nav := generate_nav(data, subreddit, option=option, t=t):
+        if nav := generate_nav(
+                data,
+                subreddit,
+                domain=domain,
+                option=option,
+                t=t):
             content += (nav,)
         return generate_page(title, header, content).render()
     else:
