@@ -1,13 +1,14 @@
 from bottle import request, response, abort, redirect, static_file, view
-from bottle import Bottle, SimpleTemplate, BaseTemplate
+from bottle import Bottle
 import requests
-import html
+from html import unescape, escape
 import os
 from datetime import datetime, timedelta
 from urllib.parse import urlparse
 import youtube_dl
 from urllib.parse import urlparse, parse_qs
 import timeago
+import pyhtml as html
 
 
 app = Bottle()
@@ -37,7 +38,7 @@ PROXY_ALLOW = {
         "i.imgur.com"]
 }
 
-DEFAULT_OPTION = "new"
+DEFAULT_OPTION = "hot"
 SUBREDDIT_OPTIONS = ["new", "hot", "top", "rising", "controversial", "gilded"]
 USER_OPTIONS = ["overview", "comments", "submitted", "gilded"]
 EXPANDED_OPTIONS = ["top", "controversial"]
@@ -50,10 +51,11 @@ TIME_OPTIONS = {
     "all": "all time"
 }
 FILE_PATH = f"{ROOT}/videos/"
-NOTHING = "<p>there doesn't seem to be anything here</p>"
+NOTHING = html.p("there doesn't seem to be anything here")
+UA = "Mozilla/5.0 (X11; Linux x86_64; rv:81.0) Gecko/20100101 Firefox/81.0"
 
 headers = {
-    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:81.0) Gecko/20100101 Firefox/81.0"
+    "User-Agent": UA
 }
 
 ydl_opts = {
@@ -65,22 +67,103 @@ ydl_opts = {
 
 ydl = youtube_dl.YoutubeDL(ydl_opts)
 
-header_template = SimpleTemplate(open(f"{ROOT}/templates/header.tpl").read())
-post_template = SimpleTemplate(open(f"{ROOT}/templates/post.tpl").read())
-video_template = SimpleTemplate(open(f"{ROOT}/templates/video.tpl").read())
-image_template = SimpleTemplate(open(f"{ROOT}/templates/image.tpl").read())
-comment_template = SimpleTemplate(open(f"{ROOT}/templates/comment.tpl").read())
-reply_template = SimpleTemplate(open(f"{ROOT}/templates/reply.tpl").read())
-gallery_template = SimpleTemplate(open(f"{ROOT}/templates/gallery.tpl").read())
 
-BaseTemplate.defaults["unescape"] = html.unescape
+def generate_video(post=None, url=None, thumbnail=None):
+    video = ()
+    if post:
+        url = post["media"]["reddit_video"]["dash_url"]
+    if thumbnail:
+        video += (html.video(Class="media",
+                             poster=f"/proxy/{thumbnail}",
+                             controls="",
+                             preload="none",
+                             src=f"/video/{url}"),
+                  )
+    else:
+        video += (html.video(Class="media", controls="",
+                             preload="metadata", src=f"/video/{url}"),)
+    return video
 
 
-def tpl(func):
-    BaseTemplate.defaults[func.__name__] = func
-    return func
+def generate_image(post, full=False, url=None):
+    url = url or post["url"]
+    img = html.img(Class="media", src=f'/proxy/{url}')
+    if post["over_18"] and full:
+        image = (html.label(html.input_(Class="nsfw", type="checkbox"), img),)
+    else:
+        image = (img,)
+    return image
 
-@tpl
+
+def generate_gallery(post, full):
+    media = ()
+    for m in post["media_metadata"]:
+        if "s" in post["media_metadata"][m]:
+            me = post["media_metadata"][m]["s"]
+            if "u" in me:
+                l = me["u"]
+            elif "gif" in me:
+                l = me["gif"]
+            media += generate_image(post, full, unescape(l))
+    mask = html.div(Class="css-slider-mask")
+    ul = html.ul(Class="css-slider with-responsive-images")
+    slider = html.li(Class="slide", tabindex=1)
+    outer = html.span(Class="slide-outer")
+    inner = html.span(Class="slide-inner")
+    gfx = html.span(Class="slide-gfx")(media)
+    gallery = mask(
+        ul(
+            slider(
+                outer(
+                    inner(
+                        gfx(me)
+                    )
+                )
+            ) for me in media
+        )
+    )
+
+    return gallery
+
+
+def generate_page(title, header, content):
+    page = html.html(
+        html.head(
+            html.title(title),
+            html.link(
+                rel="stylesheet",
+                type="text/css",
+                href="/static/style.css"),
+            html.link(
+                rel="stylesheet",
+                type="text/css",
+                href="/static/slider.css"),
+            html.link(
+                rel="icon",
+                href="/static/favicon.svg"),
+            html.meta(
+                name="viewport",
+                content="width=device-width, initial-scale=1.0")),
+        html.body(
+            html.div(
+                Class="header")(header),
+            html.div(
+                Class="content")(content)))
+    return page
+
+
+class progress(html.Tag):
+    self_closing = False
+
+
+class details(html.Tag):
+    self_closing = False
+
+
+class summary(html.Tag):
+    self_closing = False
+
+
 def get_time(data):
     date = datetime.fromtimestamp(
         data["created"]) - timedelta(hours=TIMESHIFT)
@@ -88,118 +171,147 @@ def get_time(data):
     return timeago.format(date, now)
 
 
-@tpl
 def generate_subreddit_link(subreddit):
-    return f'<a href="/r/{subreddit}">r/{subreddit}</a>'
+    return html.a(href=f"/r/{subreddit}")(f"r/{subreddit}")
 
 
 def xparse(text):
-    return html.unescape(text)
+    return (html.Safe(unescape(text)),)
 
-@tpl
+
 def generate_awards(post):
-    awards = []
+    awards = ()
     if "all_awardings" in post:
         for award in post["all_awardings"]:
-            awards.append(
-                f'<a href="/{post["subreddit_name_prefixed"]}/gilded" class="awarding-icon" title="{html.escape(award["name"])}"><img src="/proxy/{award["icon_url"]}"/> {award["count"]} </a>')
-    return "".join(awards)
+            cin = (html.img(src=f'/proxy/{award["icon_url"]}'),)
+            if (count := award["count"]) > 1:
+                cin += (count,)
+            link = f'{post["subreddit_name_prefixed"]}/gilded'
+            awards += (html.a(href=link, Class="awarding-icon",
+                              title=escape(award["name"]))(cin),)
+    return awards
 
 
-def generate_subreddit_menu(o, option, subreddit):
-    focus = 'class="focus" ' if option == o else ""
-    sub = f"/r/{subreddit}" if subreddit else ""
-    if not option and o == DEFAULT_OPTION:
-        return f'<a class="focus" href="{sub}/">{o}</a>'
-    else:
-        return f'<a {focus}href="{sub}/{o}">{o}</a>'
+def generate_subreddit_menu(option, subreddit):
+    links = ()
+    for o in SUBREDDIT_OPTIONS:
+        focus = option == o or (not option and o == DEFAULT_OPTION)
+        sub = f"/r/{subreddit}" if subreddit else ""
+        link = f"{sub}/{o}"
+        if focus:
+            a = html.a(href=link, Class="focus")(o)
+        else:
+            a = html.a(href=link)(o)
+        links += (a,)
+    return links
 
 
-def generate_user_menu(o, option, user):
-    focus = 'class="focus" ' if option == o else ""
-    return f'<a {focus} href="/u/{user}/{o}">{o}</a>'
+def generate_user_menu(option, user):
+    links = ()
+    for o in USER_OPTIONS:
+        focus = option == o or (not option and o == default_option)
+        link = f"/u/{user}/{o}"
+        if focus:
+            a = html.a(href=link, Class="focus")(o)
+        else:
+            a = html.a(href=link)(o)
+        links += (a,)
+    return links
 
 
 def generate_before_link(data, subreddit, option, t=None):
     sub = f"/{subreddit}" if subreddit else ""
-    time = f"t={t}&amp;" if t else ""
-    return f'<a href="{sub}/{option}?{time}count=25&amp;before={data["data"]["before"]}">&lt;prev</a>'
+    time = f"t={t}&" if t else ""
+    link = f'{sub}/{option}?{time}count=25&before={data["data"]["before"]}'
+    a = html.a(href=link)("<prev")
+    return a
 
 
 def generate_after_link(data, subreddit, option, t=None):
     sub = f"/{subreddit}" if subreddit else ""
-    time = f"t={t}&amp;" if t else ""
-    return f'<a href="{sub}/{option}?{time}count=25&amp;after={data["data"]["after"]}">next&gt;</a>'
+    time = f"t={t}&" if t else ""
+    link = f'{sub}/{option}?{time}count=25&after={data["data"]["after"]}'
+    a = html.a(href=link)("next>")
+    return a
 
 
 def generate_post(post, full=False):
     if "crosspost_parent_list" in post:
         content = generate_post(post['crosspost_parent_list'][0], True)
     elif text := post["selftext_html"]:
-        content = f'<div class="text">{xparse(text)}</div>'
+        content = xparse(text)
         if "poll_data" in post:
-            content += generate_poll(post)
+            content = generate_poll(post)
     elif post["is_reddit_media_domain"] and post["thumbnail"]:
+        content = (html.a(href=post["url"])(post["url"]), html.br())
         if post["is_video"]:
-            content = video_template.render(post=post)
+            content += (generate_video(post),)
         else:
-            content = image_template.render(post=post, full=full)
+            content += (generate_image(post, full=full),)
     elif "is_gallery" in post and post["media_metadata"]:
-        content = generate_gallery(post, full=full)
+        content = (html.a(href=post["url"])(post["url"]), html.br())
+        content += (generate_gallery(post, full=full),)
     elif post["is_self"]:
         content = ""
     else:
         content = generate_content(post, full=full)
-    return post_template.render(
-        post=post,
-        content=content,
-        full=full)
+    title = post["title"] if "title" in post else post["link_title"]
+    flair = post["link_flair_text"] if "link_flair_text" in post else None
+    header = ()
+    if full:
+        header += (generate_subreddit_link(post["subreddit"]),)
+    header += (html.a(href=post["permalink"])(html.b(title)),)
+    if flair:
+        header += (html.span(Class="flair")(flair),)
+    author = html.a(href=f'/u/{post["author"]}')(f'u/{post["author"]}')
+    header += (html.br(), author, get_time(post),
+               html.br(), generate_awards(post))
+    return html.div(
+        Class="post")(
+        html.div(
+            Class="sub-header")(header),
+        html.hr(),
+        html.div(
+                Class="post-content")(content))
 
 
 def generate_poll(post):
-    options = []
+    options = ()
     tvotes = post["poll_data"]["total_vote_count"]
     for opt in post["poll_data"]["options"]:
-        if "vowwte_count" in opt:
+        if "vote_count" in opt:
             votes = opt["vote_count"]
-            options.append(
-                f'<p>{opt["text"]} : {votes} votes</p><progress value="{votes}" max="{tvotes}"></progress>')
+            cin = (
+                html.p(f'{opt["text"]} : {votes}'),
+                progress(
+                    value=votes,
+                    max=tvotes))
+            options += cin
         else:
-            options.append(
-                f'<p><input style="display:inline;" disabled="" type="radio"/>{opt["text"]}</p>')
-    return f'<div class="pool">{"".join(options)}</div>'
-
-
-def generate_gallery(post, full=False):
-    media = []
-    for m in post["media_metadata"]:
-        if "s" in post["media_metadata"][m]:
-            me = post["media_metadata"][m]["s"]
-            if "u" in me:
-                media.append(me["u"])
-            elif "gif" in me:
-                media.append(me["gif"])
-    return gallery_template.render(post=post, media=media, full=full)
+            cin = (html.p(html.input_(disabled="", type="radio"), opt["text"]))
+            options += (cin,)
+    div = html.div(Class="poll")(options)
+    return div
 
 
 def generate_content(post, full=False):
     url = post["url"]
-    content = f'<a href="{url}">{url}</a><br/>'
+    content = (html.a(href=url)(url), html.br())
     uri = urlparse(url)
     if (netloc := uri.netloc) in PROXY_ALLOW["youtube"]:
         if netloc in PROXY_ALLOW["video"]:
-            content += video_template.render(url=url, thumbnail=url)
+            content += (generate_video(url=url, thumbnail=url),)
         elif "v" in (query := parse_qs(uri.query)):
             if v := query["v"]:
                 u = f"https://youtu.be/{v[0]}"
-                content += video_template.render(url=u, thumbnail=u)
+                content += (generate_video(url=u, thumbnail=u),)
     elif netloc in PROXY_ALLOW["video"]:
-        content += video_template.render(url=url)
+        content += (generate_video(url=url),)
     elif netloc in PROXY_ALLOW["imgur"]:
         if url.endswith(".gifv"):
-            content += video_template.render(url=url)
+            content += (generate_video(url=url),)
         else:
-            content += image_template.render(post=post, url=url, full=full)
+            content += generate_image(post=post, full=full)
     return content
 
 
@@ -213,172 +325,155 @@ def get_thumbnail(url):
 
 
 def generate_posts(data, full=False):
-    posts = []
+    posts = ()
     for children in data["data"]["children"]:
         post = children["data"]
-        posts.append(generate_post(post, full))
-    return "".join(posts)
+        posts += (generate_post(post, full),)
+    return posts
 
 
 def generate_mixed_content(data_list):
-    content = []
+    content = ()
     for data in data_list:
         if data["kind"] == "t1":
-            content.append(generate_comment(data, True))
+            content += (generate_comment(data, True),)
         elif data["kind"] == "t3":
-            content.append(generate_post(data["data"], True))
-    return "".join(content)
+            content += (generate_post(data["data"], True),)
+    return (content,)
 
 
 def generate_comment(data, full=False):
-    text = html.unescape(data["data"]["body_html"])
+    comment = data["data"]
+    text = unescape(comment["body_html"])
     if full:
-        return post_template.render(
-            post=data["data"], content=text, full=full)
+        a = html.a(href=f'/u/{comment["author"]}')(f'/u/{comment["author"]}')
+        cin = (
+            a,
+            get_time(comment),
+            generate_awards(comment),
+            html.br(),
+            html.Safe(text))
+        return html.div(Class="comment")(cin)
     else:
         replies = generate_replies(data)
-        return comment_template.render(
-            comment=data["data"],
-            text=text,
-            replies=replies)
+        a = html.a(href=f'/u/{comment["author"]}')(f'/u/{comment["author"]}')
+        cin = (
+            a,
+            get_time(comment),
+            generate_awards(comment),
+            html.br(),
+            html.Safe(text),
+            replies)
+        return html.div(Class="comment")(cin)
 
 
 def generate_comments(data_list):
-    comments = []
+    comments = ()
     for data in data_list:
         if data['kind'] == "more":
-            comments.append("<p>...</p>")
+            comments += (html.p("..."),)
         else:
-            comments.append(generate_comment(data))
-    return f'<div class="comments">{"".join(comments)}</div>'
+            comments += (generate_comment(data),)
+    return html.div(Class="comments")(comments)
 
 
 def generate_replies(data):
-    replies = []
+    replies = ()
     if data['kind'] == "more":
-        replies.append("<p>...</p>")
+        replies += html.p("...")
     elif data['data']['replies']:
         for children in data['data']['replies']['data']['children']:
             if children['kind'] == "more":
-                replies.append("<p>...</p>")
+                replies += (html.p("..."),)
             else:
-                text = html.unescape(children["data"]["body_html"])
-                replies.append(
-                    reply_template.render(
-                        comment=children["data"],
-                        text=text,
-                        replies=generate_replies(children)))
-    return f'<ul>{"".join(replies)}</ul>' if replies else ""
+                comment = children["data"]
+                text = unescape(children["data"]["body_html"])
+                a = html.a(
+                    href=f'/u/{comment["author"]}')(f'/u/{comment["author"]}')
+                cin = (
+                    a,
+                    get_time(comment),
+                    generate_awards(comment),
+                    html.br(),
+                    html.Safe(text),
+                    generate_replies(children))
+                replies += (html.li(html.div(Class="reply")(cin)),)
+    return html.ul(replies) if replies else ""
 
 
-def generate_nav(data, subreddit="", option=None, user="", t=None):
-    buttons = []
+def generate_nav(data, subreddit=None, option=None, user="", t=None):
+    buttons = ()
+    target = f"r/{subreddit}" if subreddit else f"u/{user}" if user else ""
     if data["data"]["before"]:
-        buttons.append(
+        buttons += (
             generate_before_link(
-                data,
-                f"r/{subreddit}" if subreddit else f"u/{user}" if user else "",
-                option or "", t))
+                data, target, option or "", t),)
     if data["data"]["after"]:
-        buttons.append(
+        buttons += (
             generate_after_link(
-                data,
-                f"r/{subreddit}" if subreddit else f"u/{user}" if user else "",
-                option or "", t))
-    return f'<div class="nav">{" ".join(buttons)}</div>' if buttons else ""
+                data, target, option or "", t),)
+    return html.div(Class="nav")(buttons) if buttons else ()
 
 
 def generate_menu(items):
-    return f'<div class="menu">{" ".join(items)}</div>'
+    return (html.div(Class="menu")(items),)
 
 
 def generate_header(subreddit="", user=""):
-    link = ""
+    header = (html.a(href="/")(html.span(Class="title")("kddit")),)
     if subreddit:
-        link += f'<a href="/r/{subreddit}"><span class="title link">r/{subreddit}</span></a>'
-    elif (not subreddit and not user):
-        link = ""
+        header += (html.a(href=f"/r/{subreddit}")
+                   (html.span(Class="title link")(f"r/{subreddit}")),)
     elif user:
-        link = f'<a href="/u/{user}"><span class="link">u/{user}</span></a>'
-    return header_template.render(link=link)
+        header += (html.a(href=f"/u/{user}")
+                   (html.span(Class="title link")(f"u/{user}")),)
+    return header
 
 
 def generate_expanded_menu(subreddit, option, t=None):
-    items = [
-        f'<a href="{"/r/" + subreddit if subreddit else ""}/{option}?t={i}">{v}</a>' for i,
-        v in TIME_OPTIONS.items()]
-    return f'<details><summary>{TIME_OPTIONS[t or "day"]}</summary>{"<br/>".join(items)}</details>'
+    p = f"/r/{subreddit}" if subreddit else ""
+    items = tuple(
+        (html.a(
+            href=f'{p}/{option}?t={i}')(v),
+            html.br()) for i,
+        v in TIME_OPTIONS.items())
+    return details(summary(TIME_OPTIONS[t or "day"]), items)
 
 
 @app.route("/", "GET")
 @app.route("/<option>", "GET")
 @app.route("/<option>/", "GET")
-@view("index")
-def index(option=""):
-    if option and option not in SUBREDDIT_OPTIONS:
-        return abort(404)
-    query = dict(request.query)
-    t = query["t"] if "t" in query else None
-    r = requests.get(
-        f"https://old.reddit.com/{option or DEFAULT_OPTION}.json",
-        params=query,
-        headers=headers)
-    if r.status_code == 200:
-        data = r.json()
-        fmt = {}
-        fmt["header"] = generate_header()
-        fmt["title"] = "kddit"
-        fmt["content"] = generate_menu([generate_subreddit_menu(o, option, None)
-                                        for o in SUBREDDIT_OPTIONS])
-        if option in EXPANDED_OPTIONS:
-            fmt["content"] += generate_expanded_menu("",
-                                                     option or DEFAULT_OPTION, t)
-        if option == "gilded":
-            fmt["content"] += generate_mixed_content(
-                data["data"]["children"]) or NOTHING
-        else:
-            fmt["content"] += generate_posts(data, True) or NOTHING
-        if nav := generate_nav(data, option=option, t=t):
-            fmt["content"] += nav
-        return fmt
-    else:
-        return abort(r.status_code)
-
-
 @app.route("/r/<subreddit>", "GET")
 @app.route("/r/<subreddit>/", "GET")
 @app.route("/r/<subreddit>/<option>", "GET")
 @app.route("/r/<subreddit>/<option>/", "GET")
-@view("index")
-def subreddit_page(subreddit, option=""):
+def subreddit_page(subreddit=None, option=None):
     if option and option not in SUBREDDIT_OPTIONS:
         return abort(404)
     query = dict(request.query)
     t = query["t"] if "t" in query else None
+    p = f"/r/{subreddit}" if subreddit else ""
     r = requests.get(
-        f"https://old.reddit.com/r/{subreddit}/{option}/.json",
+        f'https://old.reddit.com{p}/{option or DEFAULT_OPTION}.json',
         params=query,
         headers=headers)
     if r.status_code == 200:
         data = r.json()
-        sub = f"r/{subreddit}"
-        fmt = {}
-        fmt["title"] = sub
-        fmt["header"] = generate_header(
-            subreddit=subreddit)
-        fmt["content"] = generate_menu([generate_subreddit_menu(
-            o, option, subreddit) for o in SUBREDDIT_OPTIONS])
+        title = f"r/{subreddit}" if subreddit else "kddit"
+        header = generate_header(subreddit=subreddit)
+        content = ()
+        content += (generate_menu(generate_subreddit_menu(option, subreddit)))
         if option in EXPANDED_OPTIONS:
-            fmt["content"] += generate_expanded_menu(
-                subreddit, option or DEFAULT_OPTION, t)
+            content += (generate_expanded_menu(
+                subreddit, option or DEFAULT_OPTION, t),)
         if option == "gilded":
-            fmt["content"] += generate_mixed_content(
-                data["data"]["children"]) or NOTHING
+            content += (generate_mixed_content(
+                data["data"]["children"]) or NOTHING,)
         else:
-            fmt["content"] += generate_posts(data) or NOTHING
-        if nav := generate_nav(data, subreddit=subreddit, option=option, t=t):
-            fmt["content"] += nav
-        return fmt
+            content += (generate_posts(data, not bool(subreddit)) or NOTHING,)
+        if nav := generate_nav(data, subreddit, option=option, t=t):
+            content += (nav,)
+        return generate_page(title, header, content).render()
     else:
         return abort(r.status_code)
 
@@ -387,22 +482,17 @@ def subreddit_page(subreddit, option=""):
 @app.route("/r/<subreddit>/comments/<post_id>/<path>/", "GET")
 @app.route("/r/<subreddit>/comments/<post_id>/<path>/<comment_id>", "GET")
 @app.route("/r/<subreddit>/comments/<post_id>/<path>/<comment_id>/", "GET")
-@view("index")
-def subreddit(subreddit, post_id, path, comment_id=""):
-    r = requests.get(
-        f"https://old.reddit.com/r/{subreddit}/comments/{post_id}/{path}/{comment_id}.json",
-        params=dict(
-            request.query),
-        headers=headers)
+def post_page(subreddit, post_id, path, comment_id=""):
+    u = f"https://old.reddit.com/r/{subreddit}/comments/{post_id}/{path}/{comment_id}.json"
+    r = requests.get(u, params=dict(request.query), headers=headers)
     if r.status_code == 200:
         data = r.json()
         post = data[0]["data"]["children"][0]["data"]
         comments = data[1]["data"]["children"]
-        fmt = {}
-        fmt["title"] = post["title"]
-        fmt["content"] = generate_post(post) + generate_comments(comments)
-        fmt["header"] = generate_header(subreddit=subreddit)
-        return fmt
+        title = post["title"]
+        content = (generate_post(post), generate_comments(comments))
+        header = generate_header(subreddit=subreddit)
+        return generate_page(title, header, content).render()
     else:
         return abort(r.status_code)
 
@@ -415,7 +505,6 @@ def subreddit(subreddit, post_id, path, comment_id=""):
 @app.route("/user/<user>/<option>", "GET")
 @app.route("/u/<user>/<option>/", "GET")
 @app.route("/user/<user>/<option>/", "GET")
-@view("index")
 def user_page(user, option="overview"):
     if option and option not in USER_OPTIONS:
         return abort(404)
@@ -426,15 +515,13 @@ def user_page(user, option="overview"):
         headers=headers)
     if r.status_code == 200:
         data = r.json()
-        fmt = {}
-        fmt["title"] = f"{option} by {user}"
-        fmt["content"] = generate_menu([generate_user_menu(o, option, user)
-                                        for o in USER_OPTIONS])
-        fmt["content"] += generate_mixed_content(data["data"]["children"])
-        fmt["header"] = generate_header(user=user)
+        title = f"{option} by {user}"
+        content = (generate_menu(generate_user_menu(option, user)),)
+        content += (generate_mixed_content(data["data"]["children"]),)
+        header = generate_header(user=user)
         if nav := generate_nav(data, user=user, option=option):
-            fmt["content"] += nav
-        return fmt
+            content += (nav,)
+        return generate_page(title, header, content).render()
     else:
         return abort(r.status_code)
 
@@ -492,13 +579,11 @@ def proxy(url):
 @app.error(451)
 @app.error(500)
 @app.error(503)
-@view("index")
 def error_redirect(error):
-    fmt = {}
-    fmt["title"] = f"{error.status}!"
-    fmt["content"] = f"<br/><br/><br/><br/><br/><br/><h1>{error.status}!\n</h1>"
-    fmt["header"] = header_template.render()
-    return fmt
+    title = f"{error.status}!"
+    content = html.h1(title)
+    header = generate_header()
+    return generate_page(title, header, content).render()
 
 
 application = app

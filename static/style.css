@@ -185,6 +185,7 @@ hr {
     -ms-overflow-style: none;
     scrollbar-width: none;
     margin:0px 10px;
+    word-break: break-word;
 }
 
 .content > :first-child {
@@ -229,13 +230,17 @@ hr {
     max-width: 100%;
 }
 
-.pool {
+.poll {
     margin:auto;
     text-align:left;
     border:1px solid;
     margin-bottom:10px;
     padding:5px;
     border-radius:4px;
+}
+
+.poll input {
+    display:inline;
 }
 
 .reply {
@@ -322,4 +327,7 @@ p, h1, h2, h3 {
     border-bottom:1px solid;
     border-radius:0px;
     padding:2px;
+    margin:2px;
 }
+
+
