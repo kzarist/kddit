@@ -346,14 +346,21 @@ def generate_comment(data, full=False):
     comment = data["data"]
     text = unescape(comment["body_html"])
     if full:
-        a = html.a(href=f'/u/{comment["author"]}')(f'/u/{comment["author"]}')
+        title = comment["link_title"]
+        header = (html.a(href=comment["permalink"])(html.b(title)), html.br())
+        header += ("by",
+                   html.a(href=f'/u/{comment["author"]}')(f'u/{comment["author"]}'))
+        header += ("in", generate_subreddit_link(comment["subreddit"]))
+        header += (get_time(comment),
+                   generate_awards(comment))
+        sub_header = html.div(Class="sub-header")(header)
         cin = (
-            a,
-            get_time(comment),
-            generate_awards(comment),
+            sub_header,
             html.br(),
-            html.Safe(text))
-        return html.div(Class="comment")(cin)
+            html.hr(),
+            html.div(Class="post-content")(html.Safe(text))
+        )
+        return html.div(Class="post")(cin)
     else:
         replies = generate_replies(data)
         a = html.a(href=f'/u/{comment["author"]}')(f'/u/{comment["author"]}')
