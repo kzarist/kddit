@@ -219,6 +219,11 @@ hr {
     margin-bottom:10px;
 }
 
+.post-content * {
+    text-align: left; 
+    margin: auto 10px;
+}
+
 .post-content {
     margin:auto;
     overflow:auto;
