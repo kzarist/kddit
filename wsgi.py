@@ -236,7 +236,7 @@ def generate_after_link(data, target, option, t=None):
 
 
 def generate_post(post, full=False):
-    if "crosspost_parent_list" in post:
+    if crosspost := "crosspost_parent_list" in post:
         content = generate_post(post['crosspost_parent_list'][0], True)
     elif text := post["selftext_html"]:
         content = xparse(text)
@@ -266,13 +266,17 @@ def generate_post(post, full=False):
     author = html.a(href=f'/u/{post["author"]}')(f'u/{post["author"]}')
     header += (html.br(), author, get_time(post),
                html.br(), generate_awards(post))
+    if crosspost:
+        div = (content,)
+    else:
+        html.div(
+            Class="post-content")(content)
     return html.div(
         Class="post")(
         html.div(
             Class="sub-header")(header),
         html.hr(),
-        html.div(
-                Class="post-content")(content))
+        div)
 
 
 def generate_poll(post):
