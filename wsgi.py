@@ -269,7 +269,7 @@ def generate_post(post, full=False):
     if crosspost:
         div = (content,)
     else:
-        html.div(
+        div = html.div(
             Class="post-content")(content)
     return html.div(
         Class="post")(
@@ -367,7 +367,7 @@ def generate_comment(data, full=False):
         return html.div(Class="post")(cin)
     else:
         replies = generate_replies(data)
-        a = html.a(href=f'/u/{comment["author"]}')(f'/u/{comment["author"]}')
+        a = html.a(href=f'/u/{comment["author"]}')(f'u/{comment["author"]}')
         cin = (
             a,
             get_time(comment),
@@ -400,7 +400,7 @@ def generate_replies(data):
                 comment = children["data"]
                 text = unescape(children["data"]["body_html"])
                 a = html.a(
-                    href=f'/u/{comment["author"]}')(f'/u/{comment["author"]}')
+                    href=f'/u/{comment["author"]}')(f'u/{comment["author"]}')
                 cin = (
                     a,
                     get_time(comment),
