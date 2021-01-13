@@ -9,7 +9,8 @@ import youtube_dl
 from urllib.parse import urlparse, parse_qs
 import timeago
 import pyhtml as html
-
+import re
+from bs4 import BeautifulSoup
 
 app = Bottle()
 ROOT = os.path.dirname(os.path.realpath(__file__))
@@ -39,7 +40,7 @@ PROXY_ALLOW = {
 }
 
 DEFAULT_OPTION = "hot"
-SUBREDDIT_OPTIONS = ["new", "hot", "top", "rising", "controversial", "gilded"]
+SUBREDDIT_OPTIONS = ["hot", "new", "top", "rising", "controversial", "gilded"]
 USER_OPTIONS = ["overview", "comments", "submitted", "gilded"]
 EXPANDED_OPTIONS = ["top", "controversial"]
 TIME_OPTIONS = {
@@ -67,27 +68,26 @@ ydl_opts = {
 
 ydl = youtube_dl.YoutubeDL(ydl_opts)
 
+preview_re = re.compile("https://preview.redd.it/")
 
 def generate_video(post=None, url=None, thumbnail=None):
     video = ()
     if post:
         url = post["media"]["reddit_video"]["dash_url"]
     if thumbnail:
-        video += (html.video(Class="media",
-                             poster=f"/proxy/{thumbnail}",
+        video += (html.div(Class="media")(html.video(poster=f"/proxy/{thumbnail}",
                              controls="",
                              preload="none",
-                             src=f"/video/{url}"),
-                  )
+                             src=f"/video/{url}")),)
     else:
-        video += (html.video(Class="media", controls="",
-                             preload="metadata", src=f"/video/{url}"),)
+        video += (html.div(Class="media")(html.video(Class="media", controls="",
+                             preload="metadata", src=f"/video/{url}")),)
     return video
 
 
 def generate_image(post, full=False, url=None):
     url = url or post["url"]
-    img = html.img(Class="media", src=f'/proxy/{url}')
+    img = html.div(Class="media")(html.img(src=f'/proxy/{url}'))
     if post["over_18"] and full:
         image = (html.label(html.input_(Class="nsfw", type="checkbox"), img),)
     else:
@@ -156,11 +156,11 @@ class progress(html.Tag):
     self_closing = False
 
 
-class details(html.Tag):
+class svg(html.Tag):
     self_closing = False
 
 
-class summary(html.Tag):
+class path(html.Tag):
     self_closing = False
 
 
@@ -170,13 +170,28 @@ def get_time(data):
     now = datetime.now()
     return timeago.format(date, now)
 
+def human_format(num):
+    num = float('{:.3g}'.format(num))
+    magnitude = 0
+    while abs(num) >= 1000:
+        magnitude += 1
+        num /= 1000.0
+    return '{}{}'.format('{:f}'.format(num).rstrip('0').rstrip('.'), ['', 'K', 'M', 'B', 'T'][magnitude])
+
 
 def generate_subreddit_link(subreddit):
-    return html.a(href=f"/r/{subreddit}")(f"r/{subreddit}")
+    return html.a(Class="sub-link", href=f"/r/{subreddit}")(f"r/{subreddit}")
 
 
 def xparse(text):
-    return (html.Safe(unescape(text)),)
+    soup = BeautifulSoup(unescape(text), "html.parser")
+    for preview_link in soup.find_all('a', href=preview_re):
+        url = preview_link.text
+        img = soup.new_tag("img")
+        img.attrs = {"src" : f"/proxy/{url}", "class" : "media"}
+        preview_link.replace_with(img)
+        
+    return (html.Safe(str(soup)),)
 
 
 def generate_awards(post):
@@ -186,10 +201,10 @@ def generate_awards(post):
             cin = (html.img(src=f'/proxy/{award["icon_url"]}'),)
             if (count := award["count"]) > 1:
                 cin += (count,)
-            link = f'{post["subreddit_name_prefixed"]}/gilded'
+            link = f'/{post["subreddit_name_prefixed"]}/gilded'
             awards += (html.a(href=link, Class="awarding-icon",
                               title=escape(award["name"]))(cin),)
-    return awards
+    return (html.div(Class="awards")(awards),)
 
 
 def generate_subreddit_menu(option, subreddit, domain):
@@ -203,7 +218,22 @@ def generate_subreddit_menu(option, subreddit, domain):
         else:
             a = html.a(href=link)(o)
         links += (a,)
+
     return links
+
+def generate_expanded_menu(subreddit, option, t=None):
+    p = f"/r/{subreddit}" if subreddit else ""
+    links = ()
+    for i, v in TIME_OPTIONS.items():
+        focus = t == i or ( i == "hour" and not t )
+        link = f'{p}/{option}?t={i}'
+        if focus:
+            a = html.a(Class="focus",href=link)(v)
+        else:
+            a = html.a(href=link)(v)
+        links += (a,)
+    return links
+
 
 
 def generate_user_menu(option, user):
@@ -223,7 +253,7 @@ def generate_before_link(data, subreddit, option, t=None):
     sub = f"/{subreddit}" if subreddit else ""
     time = f"t={t}&" if t else ""
     link = f'{sub}/{option}?{time}count=25&before={data["data"]["before"]}'
-    a = html.a(href=link)("<prev")
+    a = html.a(Class="button", href=link)("<prev")
     return a
 
 
@@ -231,7 +261,7 @@ def generate_after_link(data, target, option, t=None):
     sub = f"/{target}" if target else ""
     time = f"t={t}&" if t else ""
     link = f'{sub}/{option}?{time}count=25&after={data["data"]["after"]}'
-    a = html.a(href=link)("next>")
+    a = html.a(Class="button", href=link)("next>")
     return a
 
 
@@ -243,40 +273,37 @@ def generate_post(post, full=False):
         if "poll_data" in post:
             content = generate_poll(post)
     elif post["is_reddit_media_domain"] and post["thumbnail"]:
-        content = (html.a(href=post["url"])(post["url"]), html.br())
+        content = (html.a(Class="post-link", href=post["url"])(post["url"]),)
         if post["is_video"]:
             content += (generate_video(post),)
         else:
             content += (generate_image(post, full=full),)
     elif "is_gallery" in post and post["media_metadata"]:
-        content = (html.a(href=post["url"])(post["url"]), html.br())
+        content = (html.a(Class="post-link",href=post["url"])(post["url"]),)
         content += (generate_gallery(post, full=full),)
     elif post["is_self"]:
         content = ""
     else:
         content = generate_content(post, full=full)
+    
     title = post["title"] if "title" in post else post["link_title"]
     flair = post["link_flair_text"] if "link_flair_text" in post else None
-    header = ()
-    if full:
-        header += (generate_subreddit_link(post["subreddit"]),)
-    header += (html.a(href=post["permalink"])(html.b(title)),)
+    author = ("Posted by", html.a(href=f'/u/{post["author"]}')(f'u/{post["author"]}'))
+    
+    post_info = (html.div(Class="post-info")((generate_subreddit_link(post["subreddit"]),"•") if full else None, author, get_time(post), generate_awards(post)),)
+
+    div = ()
+    
+    div += (html.a(href=post["permalink"])(html.b(html.Safe(title))),)
     if flair:
-        header += (html.span(Class="flair")(flair),)
-    author = html.a(href=f'/u/{post["author"]}')(f'u/{post["author"]}')
-    header += (html.br(), author, get_time(post),
-               html.br(), generate_awards(post))
+        div += (html.span(Class="flair")(html.Safe(flair)),)
+    
     if crosspost:
-        div = (content,)
+        div += (content,)
     else:
-        div = html.div(
-            Class="post-content")(content)
-    return html.div(
-        Class="post")(
-        html.div(
-            Class="sub-header")(header),
-        html.hr(),
-        div)
+        div += (html.div(Class="post-content")(content),)
+    votes = (html.div(Class="votes")(html.span(Class="icon icon-upvote"), html.span(human_format(int(post["ups"] or post["downs"]))), html.span(Class="icon icon-downvote")))
+    return html.div(Class="post")(votes, html.div(Class="inner-post")(post_info, div))
 
 
 def generate_poll(post):
@@ -300,7 +327,7 @@ def generate_poll(post):
 
 def generate_content(post, full=False):
     url = post["url"]
-    content = (html.a(href=url)(url), html.br())
+    content = (html.a(Class="post-link",href=url)(url),)
     uri = urlparse(url)
     if (netloc := uri.netloc) in PROXY_ALLOW["youtube"]:
         if netloc in PROXY_ALLOW["video"]:
@@ -351,28 +378,28 @@ def generate_comment(data, full=False):
     text = unescape(comment["body_html"])
     if full:
         title = comment["link_title"]
-        header = (html.a(href=comment["permalink"])(html.b(title)), html.br())
+        header = ()
         header += ("by",
                    html.a(href=f'/u/{comment["author"]}')(f'u/{comment["author"]}'))
         header += ("in", generate_subreddit_link(comment["subreddit"]))
-        header += (get_time(comment),
-                   generate_awards(comment))
-        sub_header = html.div(Class="sub-header")(header)
+        header += (get_time(comment),)
+                   
         cin = (
-            sub_header,
-            html.br(),
-            html.hr(),
-            html.div(Class="post-content")(html.Safe(text))
+            html.a(href=comment["permalink"])(html.b(title)), html.br(),
+            html.div(Class="comment-info")(header),
+            generate_awards(comment),
+            html.Safe(text)
         )
-        return html.div(Class="post")(cin)
+        return html.div(Class="comment")(cin)
     else:
         replies = generate_replies(data)
         a = html.a(href=f'/u/{comment["author"]}')(f'u/{comment["author"]}')
-        cin = (
-            a,
-            get_time(comment),
+        link = html.a(href=comment["permalink"])("🔗")
+        points = (html.span(human_format(int(comment["ups"] or comment["downs"]))), "points", "·" )
+        cin = (html.div(Class="comment-info")(
+            a, points,
+            get_time(comment), link),
             generate_awards(comment),
-            html.br(),
             html.Safe(text),
             replies)
         return html.div(Class="comment")(cin)
@@ -401,11 +428,12 @@ def generate_replies(data):
                 text = unescape(children["data"]["body_html"])
                 a = html.a(
                     href=f'/u/{comment["author"]}')(f'u/{comment["author"]}')
-                cin = (
-                    a,
-                    get_time(comment),
+                link = html.a(href=comment["permalink"])("🔗")
+                points = (html.span(human_format(int(comment["ups"] or comment["downs"]))), "points", "·" )
+                cin = (html.div(Class="comment-info")(
+                    a, points,
+                    get_time(comment), link),
                     generate_awards(comment),
-                    html.br(),
                     html.Safe(text),
                     generate_replies(children))
                 replies += (html.li(html.div(Class="reply")(cin)),)
@@ -433,31 +461,39 @@ def generate_nav(
 
 
 def generate_menu(items):
-    return (html.div(Class="menu")(items),)
+    g1 = ()
+    g2 = ()
+    for i, item in enumerate(items):
+        if i > 3:
+            g2 += (item, html.br())
+        else:
+            g1 += (item,)
+    if g2:
+        hidden = (html.label(Class="flex")(html.input_(Class="hidden", type="checkbox"), html.span(Class="button")("..."), html.div(g2)))
+    else:
+        hidden = None
+    return (html.div(Class="menu")(g1, hidden),)
 
 
-def generate_header(subreddit=None, user=None, domain=None):
-    header = (html.a(href="/")(html.span(Class="title")("kddit")),)
+def generate_header(subreddit=None, user=None, domain=None, option=None, q=""):
+    header = (html.a(Class="main-icon",href="/")(html.img(src="/static/favicon.svg")),)
     if subreddit:
-        header += (html.a(href=f"/r/{subreddit}")
-                   (html.span(Class="title link")(f"r/{subreddit}")),)
+        header += (html.a(href=f"/r/{subreddit}"),)
+        holder = f"r/{subreddit}"
     elif user:
-        header += (html.a(href=f"/u/{user}")
-                   (html.span(Class="title link")(f"u/{user}")),)
+        header += (html.a(href=f"/u/{user}"),)
+        holder = f"u/{user}"
     elif domain:
-        header += (html.a(href=f"/domain/{domain}")
-                   (html.span(Class="title link")(domain)),)
+        header += (html.a(href=f"/domain/{domain}"),)
+        holder = domain
+    else:
+        holder = "Search"
+    button = html.input_(Class="button", type="submit", value="")
+    header += (html.form(method="GET", action="/search/")(html.input_(name="q", required="", id="search-bar", placeholder=q or holder, value=q), button),)
     return header
 
 
-def generate_expanded_menu(subreddit, option, t=None):
-    p = f"/r/{subreddit}" if subreddit else ""
-    items = tuple(
-        (html.a(
-            href=f'{p}/{option}?t={i}')(v),
-            html.br()) for i,
-        v in TIME_OPTIONS.items())
-    return details(summary(TIME_OPTIONS[t or "day"]), items)
+
 
 
 @app.route("/", "GET")
@@ -472,10 +508,11 @@ def generate_expanded_menu(subreddit, option, t=None):
 @app.route("/domain/<domain>/<option>", "GET")
 @app.route("/domain/<domain>/<option>/", "GET")
 def subreddit_page(subreddit=None, option=None, domain=None):
-    if option and option not in SUBREDDIT_OPTIONS:
+    if option and option not in SUBREDDIT_OPTIONS + ["search"]:
         return abort(404)
     query = dict(request.query)
     t = query["t"] if "t" in query else None
+    q = query["q"] if "q" in query else ""
     p = f"/r/{subreddit}" if subreddit else f"/domain/{domain}" if domain else ""
     r = requests.get(
         f'https://old.reddit.com{p}/{option or DEFAULT_OPTION}.json',
@@ -483,14 +520,19 @@ def subreddit_page(subreddit=None, option=None, domain=None):
         headers=headers)
     if r.status_code == 200:
         data = r.json()
-        title = f"r/{subreddit}" if subreddit else domain or "kddit"
-        header = generate_header(subreddit=subreddit, domain=domain)
+        if option == "search":
+            title = f"search results - {q}"
+        else:
+            title = f"r/{subreddit}" if subreddit else domain or "kddit"
+        header = generate_header(subreddit=subreddit, domain=domain, q=q)
         content = ()
         content += (generate_menu(generate_subreddit_menu(option, subreddit, domain)))
+
+        
         if option in EXPANDED_OPTIONS:
-            content += (generate_expanded_menu(
-                subreddit, option or DEFAULT_OPTION, t),)
-        if option == "gilded":
+            content += (generate_menu(generate_expanded_menu(subreddit, option or DEFAULT_OPTION, t)),)
+        
+        if option in ["gilded", "search"]:
             content += (generate_mixed_content(
                 data["data"]["children"]) or NOTHING,)
         else:
