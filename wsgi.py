@@ -187,9 +187,12 @@ def xparse(text):
     soup = BeautifulSoup(unescape(text), "html.parser")
     for preview_link in soup.find_all('a', href=preview_re):
         url = preview_link.text
+        div = soup.new_tag("div")
+        div.attrs = {"class" : "media"}
         img = soup.new_tag("img")
-        img.attrs = {"src" : f"/proxy/{url}", "class" : "media"}
-        preview_link.replace_with(img)
+        img.attrs = {"src" : f"/proxy/{url}"}
+        div.append(img)
+        preview_link.replace_with(div)
         
     return (html.Safe(str(soup)),)
 
