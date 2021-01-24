@@ -1,4 +1,4 @@
-from bottle import request, response, abort, redirect, static_file, view
+from bottle import request, response, abort, redirect, static_file
 from bottle import Bottle
 import requests
 from html import unescape, escape
@@ -11,6 +11,7 @@ import timeago
 import pyhtml as html
 import re
 from bs4 import BeautifulSoup
+from glom import glom
 
 app = Bottle()
 ROOT = os.path.dirname(os.path.realpath(__file__))
@@ -73,7 +74,7 @@ preview_re = re.compile("https://preview.redd.it/")
 def generate_video(post=None, url=None, thumbnail=None):
     video = ()
     if post:
-        url = post["media"]["reddit_video"]["dash_url"]
+        url = glom(post, "media.reddit_video.dash_url")
     if thumbnail:
         video += (html.div(Class="media")(html.video(poster=f"/proxy/{thumbnail}",
                              controls="",
@@ -85,17 +86,17 @@ def generate_video(post=None, url=None, thumbnail=None):
     return video
 
 
-def generate_image(post, full=False, url=None):
+def generate_image(post, safe=False, url=None):
     url = url or post["url"]
     img = html.div(Class="media")(html.img(src=f'/proxy/{url}'))
-    if post["over_18"] and full:
+    if post["over_18"] and safe:
         image = (html.label(html.input_(Class="nsfw", type="checkbox"), img),)
     else:
         image = (img,)
     return image
 
 
-def generate_gallery(post, full):
+def generate_gallery(post, safe):
     media = ()
     for m in post["media_metadata"]:
         if "s" in post["media_metadata"][m]:
@@ -104,7 +105,7 @@ def generate_gallery(post, full):
                 l = me["u"]
             elif "gif" in me:
                 l = me["gif"]
-            media += generate_image(post, full, unescape(l))
+            media += generate_image(post, safe, unescape(l))
     mask = html.div(Class="css-slider-mask")
     ul = html.ul(Class="css-slider with-responsive-images")
     slider = html.li(Class="slide", tabindex=1)
@@ -268,7 +269,7 @@ def generate_after_link(data, target, option, t=None):
     return a
 
 
-def generate_post(post, full=False):
+def generate_post(post, safe=False):
     if crosspost := "crosspost_parent_list" in post:
         content = generate_post(post['crosspost_parent_list'][0], True)
     elif text := post["selftext_html"]:
@@ -280,20 +281,20 @@ def generate_post(post, full=False):
         if post["is_video"]:
             content += (generate_video(post),)
         else:
-            content += (generate_image(post, full=full),)
+            content += (generate_image(post, safe=safe),)
     elif "is_gallery" in post and post["media_metadata"]:
         content = (html.a(Class="post-link",href=post["url"])(post["url"]),)
-        content += (generate_gallery(post, full=full),)
+        content += (generate_gallery(post, safe=safe),)
     elif post["is_self"]:
         content = ""
     else:
-        content = generate_content(post, full=full)
+        content = generate_content(post, safe=safe)
     
     title = post["title"] if "title" in post else post["link_title"]
     flair = post["link_flair_text"] if "link_flair_text" in post else None
     author = ("Posted by", html.a(href=f'/u/{post["author"]}')(f'u/{post["author"]}'))
     
-    post_info = (html.div(Class="post-info")((generate_subreddit_link(post["subreddit"]),"•") if full else None, author, get_time(post), generate_awards(post)),)
+    post_info = (html.div(Class="post-info")((generate_subreddit_link(post["subreddit"]),"•"), author, get_time(post), generate_awards(post)),)
 
     div = ()
     
@@ -311,7 +312,7 @@ def generate_post(post, full=False):
 
 def generate_poll(post):
     options = ()
-    tvotes = post["poll_data"]["total_vote_count"]
+    tvotes = glom(post,"poll_data.total_vote_count")
     for opt in post["poll_data"]["options"]:
         if "vote_count" in opt:
             votes = opt["vote_count"]
@@ -328,7 +329,7 @@ def generate_poll(post):
     return div
 
 
-def generate_content(post, full=False):
+def generate_content(post, safe=False):
     url = post["url"]
     content = (html.a(Class="post-link",href=url)(url),)
     uri = urlparse(url)
@@ -345,7 +346,7 @@ def generate_content(post, full=False):
         if url.endswith(".gifv"):
             content += (generate_video(url=url),)
         else:
-            content += generate_image(post=post, full=full)
+            content += generate_image(post=post, safe=safe)
     return content
 
 
@@ -358,11 +359,11 @@ def get_thumbnail(url):
         return ""
 
 
-def generate_posts(data, full=False):
+def generate_posts(data, safe=False):
     posts = ()
     for children in data["data"]["children"]:
         post = children["data"]
-        posts += (generate_post(post, full),)
+        posts += (generate_post(post, safe),)
     return posts
 
 
@@ -482,34 +483,27 @@ def generate_header(subreddit=None, user=None, domain=None, option=None, q=""):
     header = (html.a(Class="main-icon",href="/")(html.img(src="/static/favicon.svg")),)
     if subreddit:
         header += (html.a(href=f"/r/{subreddit}"),)
-        holder = f"r/{subreddit}"
     elif user:
         header += (html.a(href=f"/u/{user}"),)
-        holder = f"u/{user}"
     elif domain:
         header += (html.a(href=f"/domain/{domain}"),)
-        holder = domain
-    else:
-        holder = "Search"
+    placeholder = "search"
     button = html.input_(Class="button", type="submit", value="")
-    header += (html.form(method="GET", action="/search/")(html.input_(name="q", required="", id="search-bar", placeholder=q or holder, value=q), button),)
+    header += (html.form(method="GET", action="/search/")(html.input_(name="q", required="", id="search-bar", placeholder=q or placeholder, value=q), button),)
     return header
 
 
-
+@app.hook('before_request')
+def strip_path():
+    request.environ['PATH_INFO'] = request.environ['PATH_INFO'].rstrip('/')
 
 
 @app.route("/", "GET")
 @app.route("/<option>", "GET")
-@app.route("/<option>/", "GET")
 @app.route("/r/<subreddit>", "GET")
-@app.route("/r/<subreddit>/", "GET")
 @app.route("/r/<subreddit>/<option>", "GET")
-@app.route("/r/<subreddit>/<option>/", "GET")
 @app.route("/domain/<domain>", "GET")
-@app.route("/domain/<domain>/", "GET")
 @app.route("/domain/<domain>/<option>", "GET")
-@app.route("/domain/<domain>/<option>/", "GET")
 def subreddit_page(subreddit=None, option=None, domain=None):
     if option and option not in SUBREDDIT_OPTIONS + ["search"]:
         return abort(404)
@@ -552,10 +546,9 @@ def subreddit_page(subreddit=None, option=None, domain=None):
         return abort(r.status_code)
 
 
+
 @app.route("/r/<subreddit>/comments/<post_id>/<path>", "GET")
-@app.route("/r/<subreddit>/comments/<post_id>/<path>/", "GET")
 @app.route("/r/<subreddit>/comments/<post_id>/<path>/<comment_id>", "GET")
-@app.route("/r/<subreddit>/comments/<post_id>/<path>/<comment_id>/", "GET")
 def post_page(subreddit, post_id, path, comment_id=""):
     u = f"https://old.reddit.com/r/{subreddit}/comments/{post_id}/{path}/{comment_id}.json"
     r = requests.get(u, params=dict(request.query), headers=headers)
@@ -571,14 +564,10 @@ def post_page(subreddit, post_id, path, comment_id=""):
         return abort(r.status_code)
 
 
-@app.route("/u/<user>/", "GET")
-@app.route("/user/<user>/", "GET")
 @app.route("/u/<user>", "GET")
 @app.route("/user/<user>", "GET")
 @app.route("/u/<user>/<option>", "GET")
 @app.route("/user/<user>/<option>", "GET")
-@app.route("/u/<user>/<option>/", "GET")
-@app.route("/user/<user>/<option>/", "GET")
 def user_page(user, option="overview"):
     if option and option not in USER_OPTIONS:
         return abort(404)
@@ -601,7 +590,6 @@ def user_page(user, option="overview"):
 
 
 @app.route("/static/<file>")
-@app.route("/static/<file>/")
 def static(file):
     return static_file(file, root=f"{ROOT}/static")
 
