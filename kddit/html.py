@@ -28,22 +28,34 @@ class path(Tag):
 
 def subreddit_link(sub):
     return a(Class="sub-link", href=f"/r/{sub}")(f"r/{sub}")
-    
-def header_div(arg):
-    return div(Class="header")(arg)
 
-def content_div(arg):
-    return div(Class="content")(arg)
-    
-def media_div(arg):
-    return div(Class="media")(arg)
 
-def menu_div(arg):
-    return div(Class="menu")(arg)
+def header_div(*args):
+    return div(Class="header")(*args)
 
-def awards_div(arg):
-    return div(Class="awards")(arg)
+def content_div(*args):
+    return div(Class="content")(*args)
 
+def post_div(*args):
+    return div(Class="post")(*args)
+
+def inner_post_div(*args):
+    return div(Class="inner-post")(*args)
+
+def media_div(*args):
+    return div(Class="media")(*args)
+
+def menu_div(*args):
+    return div(Class="menu")(*args)
+
+def awards_div(*args):
+    return div(Class="awards")(*args)
+
+def post_info_div(*args):
+    return div(Class="post-info")(*args)
+
+def post_content_div(*args):
+    return div(Class="post-content")(*args)
 
 def slider(arg):
     mask = div(Class="css-slider-mask")
@@ -224,9 +236,28 @@ def after_link(data, target, option, t=None):
     a_ = a(Class="button", href=url)("next>")
     return a_
 
+def alternate_content(data, safe=False):
+    url = data["url"]
+    output = (a(Class="post-link",href=url)(url),)
+    uri = urlparse(url)
+    if (netloc := uri.netloc) in PROXY_ALLOW["youtube"]:
+        if netloc in PROXY_ALLOW["video"]:
+            output += alternate_video(url, url)
+        elif "v" in (query := parse_qs(uri.query)):
+            if v := query["v"]:
+                u = f"https://youtu.be/{v[0]}"
+                output += (alternate_video(u, u),)
+    elif netloc in PROXY_ALLOW["video"]:
+        output += (alternate_video(url),)
+    elif netloc in PROXY_ALLOW["imgur"]:
+        if url.endswith(".gifv"):
+            output += alternate_video(url)
+        else:
+            output += reddit_image(data, safe=safe)
+    return post_content_div(output)
 
-def post(data, safe=False):
-    if crosspost := "crosspost_parent_list" in data:
+def reddit_content(data, safe=False):
+    if crosspost := data.get("crosspost_parent_list"):
         output = post(data['crosspost_parent_list'][0], True)
     elif data["selftext_html"]:
         output = post_content(data, safe)
@@ -244,26 +275,38 @@ def post(data, safe=False):
     elif data["is_self"]:
         output = ""
     else:
-        output = content(data, safe=safe)
+        output = None
     
-    title_ = data["title"] if "title" in data else data["link_title"]
-    flair = data["link_flair_text"] if "link_flair_text" in data else None
-    author = ("Posted by", a(href=f'/u/{data["author"]}')(f'u/{data["author"]}'))
-    
-    post_info = (div(Class="post-info")((subreddit_link(data["subreddit"]),"•"), author, get_time(data["created"]), awards(data)),)
+    return output if crosspost else post_content_div(output)
 
-    div_ = ()
+@tuplefy
+def post(data, safe=False):
+    content = reddit_content(data, safe)
+    if content == None:
+        content = alternate_content(data, safe=safe)
+
+    author = data.get("author")
+    permalink = data.get("permalink")
     
-    div_ += (a(href=data["permalink"])(b(Safe(title_))),)
-    if flair:
-        div_ += (span(Class="flair")(Safe(flair)),)
+    title_ = data.get("title") or data.get("link_title")
     
-    if crosspost:
-        div_ += (output,)
-    else:
-        div_ += (div(Class="post-content")(output),)
-    votes = (div(Class="votes")(span(Class="icon icon-upvote"), span(human_format(int(data["ups"] or data["downs"]))), span(Class="icon icon-downvote")))
-    return div(Class="post")(votes, div(Class="inner-post")(post_info, div_))
+    flair_text = data.get("link_flair_text")
+    domain = data.get("domain")
+    votes = human_format(int(data.get("ups") or data.get("downs")))
+    
+    author = ("Posted by", a(href=f'/u/{author}')(f'u/{author}'))
+    domain_url = f"/domain/{domain}"
+    domain_link = None if data.get("is_self") else ("(", a(href=domain_url)(f"{domain}"), ")")
+    title_link = builder(a(href=permalink),Safe,b,title_)
+    
+    post_info = post_info_div(subreddit_link(data["subreddit"]),"•", author, get_time(data["created"]), domain_link,  awards(data))
+
+    flair = builder(span(Class="flair"),Safe,flair_text) if flair_text else None
+    
+    inner = [title_link, flair, content]
+    
+    votes = (div(Class="votes")(span(Class="icon icon-upvote"), votes , span(Class="icon icon-downvote")))
+    return post_div(votes, inner_post_div(post_info, inner))
 
 
 def poll(data):
@@ -285,32 +328,12 @@ def poll(data):
     return div_
 
 
-def content(data, safe=False):
-    url = data["url"]
-    output = (a(Class="post-link",href=url)(url),)
-    uri = urlparse(url)
-    if (netloc := uri.netloc) in PROXY_ALLOW["youtube"]:
-        if netloc in PROXY_ALLOW["video"]:
-            output += alternate_video(url, url)
-        elif "v" in (query := parse_qs(uri.query)):
-            if v := query["v"]:
-                u = f"https://youtu.be/{v[0]}"
-                output += (alternate_video(u, u),)
-    elif netloc in PROXY_ALLOW["video"]:
-        output += (alternate_video(url),)
-    elif netloc in PROXY_ALLOW["imgur"]:
-        if url.endswith(".gifv"):
-            output += alternate_video(url)
-        else:
-            output += reddit_image(data, safe=safe)
-    return output
-
 
 def posts(data, safe=False):
     posts_ = ()
-    for children in data["data"]["children"]:
+    for children in g(data, "data.children"):
         data = children["data"]
-        posts_ += (post(data, safe),)
+        posts_ += post(data, safe)
     return posts_
 
 
