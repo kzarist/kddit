@@ -189,16 +189,11 @@ hr {
     background-size: contain;
     background-repeat: no-repeat;
     background-position: right;
-    -ms-overflow-style: none;
-    scrollbar-width: none;
     padding:20px 24px;
     word-break: break-word;
 }
 
 
-.content::-webkit-scrollbar {
-  display: none;
-}
 
 .comments {
     text-align:left;
@@ -447,12 +442,12 @@ p, h1, h2, h3 {
 }
 
 
-.nsfw + img {
+.nsfw + .media img {
     -webkit-filter: blur(8px);  
     filter: blur(8px);
 }
 
-.nsfw:checked + img {
+.nsfw:checked + .media img {
     -webkit-filter: none;  
     filter: none;
 }
@@ -482,11 +477,13 @@ p, h1, h2, h3 {
 .menu, .nav {
     margin:auto;
     margin-bottom:10px;
+    overflow:auto;
 }
 
 .menu a, .nav a , .button {
     font-size:12px;
     padding:8px;
+    white-space: nowrap;
 }
 
 .menu a:hover, .menu .focus, .button:hover {
