@@ -8,13 +8,17 @@ PROXY_ALLOW = {
         "i.redd.it",
         "b.thumbs.redditmedia.com",
         "preview.redd.it",
+        "emoji.redditmedia.com",
         "i.ytimg.com",
         "www.redditstatic.com",
-        "i.imgur.com"],
+        "i.imgur.com",
+        "i.imgflip.com"],
     "video": [
         "v.redd.it",
         "youtu.be",
-        "gfycat.com"],
+        "gfycat.com",
+        "redgifs.com",
+        "www.redgifs.com"],
     "youtube": [
         "youtu.be",
         "www.youtube.com",
@@ -26,6 +30,7 @@ PROXY_ALLOW = {
 DEFAULT_OPTION = "hot"
 SUBREDDIT_OPTIONS = ["hot", "new", "top", "rising", "controversial", "gilded"]
 USER_OPTIONS = ["overview", "comments", "submitted", "gilded"]
+USER_SORT = ["hot", "new", "top", "controversial"]
 EXPANDED_OPTIONS = ["top", "controversial"]
 TIME_OPTIONS = {
     "hour": "now",
@@ -36,9 +41,11 @@ TIME_OPTIONS = {
     "all": "all time"
 }
 
+SAFE_SUBS = ["all", "random"]
+
 FILE_PATH = f"{ROOT}/videos/"
 
-UA = "Mozilla/5.0 (X11; Linux x86_64; rv:81.0) Gecko/20100101 Firefox/81.0"
+UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36"
 
 HEADERS = {
     "User-Agent": UA

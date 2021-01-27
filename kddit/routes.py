@@ -30,6 +30,7 @@ def subreddit_page(subreddit=None, option=None):
         content = ()
         content += (html.subreddit_menu(option, subreddit))
 
+        safe = not subreddit or subreddit in SAFE_SUBS
         
         if option in EXPANDED_OPTIONS:
             content += (html.expanded_menu(subreddit, option or DEFAULT_OPTION, time))
@@ -38,7 +39,7 @@ def subreddit_page(subreddit=None, option=None):
             content += (html.mixed_content(
                 data["data"]["children"]) or html.nothing,)
         else:
-            content += (html.posts(data, not bool(subreddit)) or html.nothing,)
+            content += (html.posts(data, safe) or html.nothing,)
         if nav := html.nav(
                 data,
                 subreddit,
@@ -73,7 +74,7 @@ def domain_page(domain, option=None):
 
         
         if option in EXPANDED_OPTIONS:
-            content += (html.expanded_menu(domain, option or DEFAULT_OPTION, time))
+            content += (html.expanded_domain_menu(domain, option or DEFAULT_OPTION, time))
         
         if option in ["gilded", "search"]:
             content += (html.mixed_content(
@@ -121,8 +122,11 @@ def user_page(user, option="overview"):
     r = req(url, query)
     if success(r):
         data = r.json()
+        sort = query.get("sort")
         title = f"{option} by {user}"
-        content = (html.user_menu(option, user))
+        content = html.user_menu(option, user)
+        if option != "gilded":
+            content += html.user_sort_menu(option, sort, user)
         content += (html.mixed_content(data["data"]["children"]),)
         header = html.page_header(user=user)
         if nav := html.nav(data, user=user, option=option):
@@ -144,7 +148,7 @@ def video_proxy(url):
         with ydl:
             result = ydl.extract_info(url, download=True)
             return static_file(
-                f'{result["id"]}.{result["ext"]}',
+                f'{result["id"]}.mp4',
                 root=FILE_PATH)
     elif netloc in PROXY_ALLOW["imgur"]:
         iurl = url.replace(".gifv", ".mp4")
@@ -185,6 +189,6 @@ def proxy(url):
 @app.error(500)
 @app.error(503)
 def error_redirect(error):
-    return html.error_page(error)
+    return html.error_page(error).render()
 
 

@@ -2,10 +2,11 @@ from pyhtml import *
 from html import unescape, escape
 from bs4 import BeautifulSoup
 from glom import glom as g
+from glom import Coalesce
 from kddit.settings import *
 from urllib.parse import urlparse, parse_qs
-from kddit.utils import get_time, human_format, preview_re, builder
-from kddit.utils import tuplefy
+from kddit.utils import get_time, human_format, preview_re, builder, processing_re
+from kddit.utils import tuplefy, get_metadata, replace_tag
 
 nothing = p("there doesn't seem to be anything here")
 
@@ -96,34 +97,31 @@ def reddit_video(post):
     return output
 
 @tuplefy
-def reddit_image(post, url=None, safe=False):
+def reddit_image(post, url=None, safe=False, text=None):
     url = url or post["url"] 
-    image_ = media_div(img(src=f'/proxy/{url}'))
+    image_ = media_div(img(src=f'/proxy/{url}'), em(text))
     if post["over_18"] and safe:
         output = nsfw_label(image_)
     else:
         output = image_
     return output
 
-
 def gallery(data, safe=False):
     images = ()
-    for m_id in data["media_metadata"]:
-        if "s" in data["media_metadata"][m_id]:
-            image = data["media_metadata"][m_id]["s"]
-            if "u" in image:
-                l = image["u"]
-            elif "gif" in me:
-                l = image["gif"]
-            images += reddit_image(data, unescape(l), safe)
-    
-    gallery_ = slider((slider_media(media) for media in images))
-    
+    for item in reversed(g(data,"gallery_data.items")):
+        media_id = item["media_id"]
+        url = get_metadata(data, media_id)
+        if url:
+            images += reddit_image(data, url, safe)
+    if images:
+        gallery_ = slider((slider_media(media) for media in images))
+    else:
+        gallery_ = None
+        
     return gallery_
 
-
 def page(title_, header_, content_):
-    head_ = head(title(title_), default_head)
+    head_ = head(title(unescape(title_)), default_head)
     body_ = (header_div(header_), content_div(content_))
     output = html(head_, body_)
     return output
@@ -132,14 +130,15 @@ def page(title_, header_, content_):
 def post_content(post, safe):
     text = unescape(post["selftext_html"])
     soup = BeautifulSoup(text, "html.parser")
-    for preview_link in soup.find_all('a', href=preview_re):
+    for preview_link in soup.find_all("a", href=preview_re):
         url = preview_link.attrs["href"]
-        div_ = soup.new_tag("div")
-        div_.attrs = {"class" : "media"}
-        img_ = soup.new_tag("img")
-        img_.attrs = {"src" : f"/proxy/{url}"}
-        div_.append(img_)
-        preview_link.replace_with(div_)        
+        r_image = reddit_image(post, url, safe, text=preview_link.text)
+        replace_tag(preview_link.parent, r_image)
+    for preview_em in soup.find_all("em", string=processing_re):
+        name = processing_re.match(preview_em.text).group(1)
+        if url := get_metadata(post, name):
+            r_image = reddit_image(post, url, safe)
+            replace_tag(preview_em , r_image)
     return (Safe(str(soup)),)
 
 def awards(data):
@@ -208,10 +207,24 @@ def expanded_menu(subreddit, option, time=None):
     return menu_div(output)
 
 @tuplefy
+def expanded_domain_menu(domain, option, time=None):
+    output = []
+    for i, v in TIME_OPTIONS.items():
+        focus = time == i or ( not time and i == "hour"  )
+        url = f"/domain/{domain}/{option}?t={i}"
+        if focus:
+            a_ = a(Class="focus",href=url)(v)
+        else:
+            a_ = a(href=url)(v)
+        output.append(a_)
+    
+    return menu_div(output)
+
+@tuplefy
 def user_menu(option, user):
     output = []
     for o in USER_OPTIONS:
-        focus = option == o or (not option and o == default_option)
+        focus = option == o or (not option and o == DEFAULT_OPTION)
         link_ = f"/u/{user}/{o}"
         if focus:
             a_ = a(href=link_, Class="focus")(o)
@@ -219,6 +232,20 @@ def user_menu(option, user):
             a_ = a(href=link_)(o)
         output.append(a_)
     return menu_div(output)
+
+@tuplefy
+def user_sort_menu(option, sort, user):
+    output = []
+    for o in USER_SORT:
+        focus = sort == o or (not sort and o == DEFAULT_OPTION)
+        link_ = f"/u/{user}/{option}/?sort={o}"
+        if focus:
+            a_ = a(href=link_, Class="focus")(o)
+        else:
+            a_ = a(href=link_)(o)
+        output.append(a_)
+    return menu_div(output)
+
 
 
 def before_link(data, target, option, t=None):
@@ -254,6 +281,8 @@ def alternate_content(data, safe=False):
             output += alternate_video(url)
         else:
             output += reddit_image(data, safe=safe)
+    elif netloc in PROXY_ALLOW["image"]:
+        output += reddit_image(data, safe=safe)
     return post_content_div(output)
 
 def reddit_content(data, safe=False):
@@ -277,7 +306,17 @@ def reddit_content(data, safe=False):
     else:
         output = None
     
-    return output if crosspost else post_content_div(output)
+    return output if crosspost or not output else post_content_div(output)
+
+def rich_text(richtext, text):
+    for item in richtext:
+        a_ = item.get("a")
+        u = item.get("u")
+        if not (a_ or u):
+            continue
+        text = text.replace(a_, f'<span class="flair-emoji" style="background-image:url(/proxy/{u});"></span>')
+
+    return text
 
 @tuplefy
 def post(data, safe=False):
@@ -288,9 +327,13 @@ def post(data, safe=False):
     author = data.get("author")
     permalink = data.get("permalink")
     
-    title_ = data.get("title") or data.get("link_title")
-    
+    title_ = unescape(data.get("title") or data.get("link_title"))
+
     flair_text = data.get("link_flair_text")
+    
+    if flair_richtext := data.get("link_flair_richtext"):
+        flair_text = rich_text(flair_richtext, flair_text )
+    
     domain = data.get("domain")
     votes = human_format(int(data.get("ups") or data.get("downs")))
     
@@ -301,7 +344,7 @@ def post(data, safe=False):
     
     post_info = post_info_div(subreddit_link(data["subreddit"]),"•", author, get_time(data["created"]), domain_link,  awards(data))
 
-    flair = builder(span(Class="flair"),Safe,flair_text) if flair_text else None
+    flair = builder(span(Class="flair"),Safe,unescape,flair_text) if flair_text else None
     
     inner = [title_link, flair, content]
     
@@ -346,10 +389,16 @@ def mixed_content(data_list):
             output += (post(data["data"], True),)
     return (output,)
 
-
+def comment_flair(data):
+    flair_text = g(data, "author_flair_text", default=None)
+    if flair_richtext := data.get("author_flair_richtext"):
+        flair_text = rich_text(flair_richtext, flair_text )
+    return builder(span(Class="flair"),Safe,unescape,flair_text) if flair_text else None
+    
 def comment(data, full=False):
     comment_ = data["data"]
     text = unescape(comment_["body_html"])
+    flair = comment_flair(comment_)
     if full:
         title_ = comment_["link_title"]
         header = ()
@@ -371,7 +420,7 @@ def comment(data, full=False):
         link_ = a(href=comment_["permalink"])("🔗")
         points = (span(human_format(int(comment_["ups"] or comment_["downs"]))), "points", "·" )
         cin = (div(Class="comment-info")(
-            a_, points,
+            a_,flair, points,
             get_time(comment_["created"]), link_),
             awards(comment_),
             Safe(text),
@@ -399,13 +448,14 @@ def replies(data):
                 replies_ += (p("..."),)
             else:
                 comment_ = children["data"]
-                text = unescape(children["data"]["body_html"])
+                text = unescape(comment_["body_html"])
+                flair = comment_flair(comment_)
                 a_ = a(
                     href=f'/u/{comment_["author"]}')(f'u/{comment_["author"]}')
                 link_ = a(href=comment_["permalink"])("🔗")
                 points = (span(human_format(int(comment_["ups"] or comment_["downs"]))), "points", "·" )
                 cin = (div(Class="comment-info")(
-                    a_, points,
+                    a_,flair, points,
                     get_time(comment_["created"]), link_),
                     awards(comment_),
                     Safe(text),
@@ -434,21 +484,6 @@ def nav(
     return div(Class="nav")(buttons) if buttons else ()
 
 
-def menu(items):
-    g1 = ()
-    g2 = ()
-    for i, item in enumerate(items):
-        if i > 3:
-            g2 += (item, br())
-        else:
-            g1 += (item,)
-    if g2:
-        hidden = (label(Class="flex")(input_(Class="hidden", type="checkbox"), span(Class="button")("..."), div(g2)))
-    else:
-        hidden = None
-    return (div(Class="menu")(g1, hidden),)
-
-
 def page_header(subreddit=None, user=None, domain=None, option=None, q=""):
     header_ = (a(Class="main-icon",href="/")(img(src="/static/favicon.svg")),)
     if subreddit:
@@ -466,4 +501,4 @@ def error_page(error):
     title_ = f"{error.status}!"
     output = h1(title_)
     header_ = page_header()
-    return page(title_, header_, output).render()
+    return page(title_, header_, output)

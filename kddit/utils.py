@@ -4,6 +4,10 @@ import timeago
 import re
 import requests
 import youtube_dl
+from glom import glom as g
+from glom import Coalesce
+from bs4 import BeautifulSoup
+from html import unescape
 
 ydl = youtube_dl.YoutubeDL(YDL_OPTS)
 
@@ -29,8 +33,17 @@ def get_thumbnail(url):
     except:
         return ""
 
-preview_re = re.compile("https://preview.redd.it/")
+def replace_tag(bs_tag, html_tag):
+    html_tag = html_tag[0] if isinstance(html_tag, tuple) else html_tag
+    soup = BeautifulSoup(html_tag.render(), "html.parser")
+    bs_tag.replace_with(soup)
 
+def get_metadata(data, name):
+    output = g(data, Coalesce(f"media_metadata.{name}.s.u", f"media_metadata.{name}.s.gif"), default=None)
+    return unescape(output) if output else None
+    
+preview_re = re.compile("https://preview.redd.it/")
+processing_re = re.compile("Processing img (.*)...")
 def req(url, params=None):
     return requests.get(url, params=params, headers=HEADERS)
 

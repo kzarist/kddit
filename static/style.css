@@ -143,6 +143,7 @@ small {
 
 form {
     color:#ACA4F6;
+    display:flex;
 }
 
 textarea {
@@ -172,10 +173,20 @@ hr {
 .flair {
     background-color:#343536;
     color:#FFFFFF;
-    padding:2px 8px;
     font-size:12px;
     white-space: nowrap;
     display:inline-block;
+    height: 16px;
+    padding: 2px
+}
+
+
+
+.flair-emoji {
+    display: inline-block;
+    width: 16px;
+    height:16px;
+    background-size: contain;
 }
 
 .order {
@@ -280,6 +291,7 @@ hr {
     border:1px solid #343536;
     position:relative;
     padding-left:10px;
+    padding-top: 5px;
 
 }
 
@@ -359,7 +371,9 @@ hr {
 
 .media {
     justify-content:center;
+    text-align:center;
 }
+
 
 .slide-gfx .media img {
     max-height: 50vh;
@@ -527,11 +541,11 @@ p, h1, h2, h3 {
     border-radius: 4px;
     border: 1px solid #343536;
     color: #D7DADC;
-    height: 36px;
-    width: 36px;
+    height: 40px;
+    width: 40px;
     background-image:url(/static/search.png);
     outline: none;
-    margin:0 auto;
+    margin:0 5px;
     flex-grow:1;
     background-size:contain;
 }
