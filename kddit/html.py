@@ -75,12 +75,14 @@ def nsfw_label(arg):
 
 
 @tuplefy
-def alternate_video(url, thumbnail=None):
+def alternate_video(data, url, thumbnail=None, safe=False):
     opts = {}
     opts["src"] = f"/video/{url}"
     opts["controls"] = ""
-    
-    if thumbnail:
+
+    if nsfw(data) and safe:
+        opts["preload"] = "none"
+    elif thumbnail:
         opts["preload"] = "none"
         opts["poster"] = f"/proxy/{thumbnail}"        
     else:
@@ -89,18 +91,25 @@ def alternate_video(url, thumbnail=None):
     video_ = media_div(video(**opts))
     return video_
 
+def nsfw(data):
+    return data.get("over_18")
+
 @tuplefy
-def reddit_video(post):
-    url = g(post, "media.reddit_video.dash_url")
-    video_ = video(controls="", preload="metadata", src=f"/video/{url}")
+def reddit_video(data, thumbnail=None, safe=False):
+    url = g(data, "media.reddit_video.dash_url")
+    opts = {"controls":"", "src":f"/video/{url}"}
+    if nsfw(data) and safe:
+        opts["preload"] = "none"
+
+    video_ = video(**opts)
     output = media_div(video_)
     return output
 
 @tuplefy
-def reddit_image(post, url=None, safe=False, text=None):
-    url = url or post["url"] 
+def reddit_image(data, url=None, safe=False, text=None):
+    url = url or data["url"] 
     image_ = media_div(img(src=f'/proxy/{url}'), em(text))
-    if post["over_18"] and safe:
+    if nsfw(data) and safe:
         output = nsfw_label(image_)
     else:
         output = image_
@@ -108,7 +117,7 @@ def reddit_image(post, url=None, safe=False, text=None):
 
 def gallery(data, safe=False):
     images = ()
-    for item in reversed(g(data,"gallery_data.items")):
+    for item in reversed(g(data,"gallery_data.items", default=[])):
         media_id = item["media_id"]
         url = get_metadata(data, media_id)
         if url:
@@ -127,19 +136,21 @@ def page(title_, header_, content_):
     return output
 
 
-def post_content(post, safe):
-    text = unescape(post["selftext_html"])
+def post_content(data, safe):
+    if "poll_data" in data:
+        return poll(data)
+    text = unescape(data["selftext_html"])
     soup = BeautifulSoup(text, "html.parser")
     for preview_link in soup.find_all("a", href=preview_re):
         url = preview_link.attrs["href"]
-        r_image = reddit_image(post, url, safe, text=preview_link.text)
+        r_image = reddit_image(data, url, safe, text=preview_link.text)
         replace_tag(preview_link.parent, r_image)
     for preview_em in soup.find_all("em", string=processing_re):
         name = processing_re.match(preview_em.text).group(1)
-        if url := get_metadata(post, name):
-            r_image = reddit_image(post, url, safe)
+        if url := get_metadata(data, name):
+            r_image = reddit_image(data, url, safe)
             replace_tag(preview_em , r_image)
-    return (Safe(str(soup)),)
+    return builder(post_content_div, Safe,str,soup)
 
 def awards(data):
     if not "all_awardings" in data:
@@ -152,7 +163,7 @@ def awards(data):
         count = awarding["count"]
         name = escape(awarding["name"])
         if count > 1:
-            award.append(count)
+            award.append(span(count))
         a_ = a(href=url, Class="awarding-icon", title=name)(award)
         output.append(a_)
                               
@@ -192,7 +203,7 @@ def domain_menu(option, domain):
     return menu_div(output)
 
 @tuplefy
-def expanded_menu(subreddit, option, time=None):
+def subreddit_sort_menu(subreddit, option, time=None):
     p = f"/r/{subreddit}" if subreddit else ""
     output = []
     for i, v in TIME_OPTIONS.items():
@@ -207,7 +218,7 @@ def expanded_menu(subreddit, option, time=None):
     return menu_div(output)
 
 @tuplefy
-def expanded_domain_menu(domain, option, time=None):
+def domain_sort_menu(domain, option, time=None):
     output = []
     for i, v in TIME_OPTIONS.items():
         focus = time == i or ( not time and i == "hour"  )
@@ -247,8 +258,9 @@ def user_sort_menu(option, sort, user):
     return menu_div(output)
 
 
-
+@tuplefy
 def before_link(data, target, option, t=None):
+    option = option or ""
     sub = f"/{target}" if target else ""
     time = f"t={t}&" if t else ""
     url = f'{sub}/{option}?{time}count=25&before={data["data"]["before"]}'
@@ -256,57 +268,92 @@ def before_link(data, target, option, t=None):
     return a_
 
 
+@tuplefy
 def after_link(data, target, option, t=None):
+    option = option or ""
     sub = f"/{target}" if target else ""
     time = f"t={t}&" if t else ""
     url = f'{sub}/{option}?{time}count=25&after={data["data"]["after"]}'
     a_ = a(Class="button", href=url)("next>")
     return a_
 
+@tuplefy
+def user_before_link(data, target, option, sort=None):
+    option = option or ""
+    sub = f"/{target}" if target else ""
+    time = f"sort={sort}&" if sort else ""
+    url = f'{sub}/{option}?{time}count=25&before={data["data"]["before"]}'
+    a_ = a(Class="button", href=url)("<prev")
+    return a_
+
+
+@tuplefy
+def user_after_link(data, target, option, sort=None):
+    option = option or ""
+    sub = f"/{target}" if target else ""
+    time = f"sort={sort}&" if sort else ""
+    url = f'{sub}/{option}?{time}count=25&after={data["data"]["after"]}'
+    a_ = a(Class="button", href=url)("next>")
+    return a_
+
+def alternate_media(data, safe=False):
+    pass
+
+def youtube_media(data, url, uri, safe):
+    output = ()
+    if uri.netloc == "youtu.be":
+        output += alternate_video(data, url, url, safe)
+    elif v := parse_qs(uri.query).get("v"):
+        u = f"https://youtu.be/{v[0]}"
+        output += alternate_video(data, u, u, safe)
+    return output
+
+def imgur_media(data, url, safe):
+    if url.endswith(".gifv"):
+        output = alternate_video(data, url, safe=safe)
+    else:
+        output = reddit_image(data, safe=safe)
+
+    return output
+
 def alternate_content(data, safe=False):
     url = data["url"]
     output = (a(Class="post-link",href=url)(url),)
     uri = urlparse(url)
-    if (netloc := uri.netloc) in PROXY_ALLOW["youtube"]:
-        if netloc in PROXY_ALLOW["video"]:
-            output += alternate_video(url, url)
-        elif "v" in (query := parse_qs(uri.query)):
-            if v := query["v"]:
-                u = f"https://youtu.be/{v[0]}"
-                output += (alternate_video(u, u),)
+    netloc = uri.netloc
+    
+    if netloc in PROXY_ALLOW["youtube"]:
+        output += youtube_media(data, url, uri, safe)
     elif netloc in PROXY_ALLOW["video"]:
-        output += (alternate_video(url),)
+        output += alternate_video(data, url, safe=safe)
     elif netloc in PROXY_ALLOW["imgur"]:
-        if url.endswith(".gifv"):
-            output += alternate_video(url)
-        else:
-            output += reddit_image(data, safe=safe)
+        output += imgur_media(data, url, safe)
     elif netloc in PROXY_ALLOW["image"]:
         output += reddit_image(data, safe=safe)
     return post_content_div(output)
 
+def reddit_media(data, safe):
+    output = (a(Class="post-link", href=data["url"])(data["url"]),)
+    if data["is_video"]:
+        output += reddit_video(data, safe=safe)
+    else:
+        output += reddit_image(data, safe=safe)
+    return post_content_div(output)
+    
 def reddit_content(data, safe=False):
     if crosspost := data.get("crosspost_parent_list"):
         output = post(data['crosspost_parent_list'][0], True)
     elif data["selftext_html"]:
         output = post_content(data, safe)
-        if "poll_data" in data:
-            output = poll(data)
     elif data["is_reddit_media_domain"] and data["thumbnail"]:
-        output = (a(Class="post-link", href=data["url"])(data["url"]),)
-        if data["is_video"]:
-            output += reddit_video(data)
-        else:
-            output += reddit_image(data, safe=safe)
-    elif "is_gallery" in data and data["media_metadata"]:
+        output = reddit_media(data, safe)
+    elif  data.get("is_gallery"):
         output = (a(Class="post-link",href=data["url"])(data["url"]),)
         output += (gallery(data, safe=safe),)
-    elif data["is_self"]:
-        output = ""
     else:
         output = None
     
-    return output if crosspost or not output else post_content_div(output)
+    return output # if crosspost or not output else post_content_div(output)
 
 def rich_text(richtext, text):
     for item in richtext:
@@ -327,12 +374,7 @@ def post(data, safe=False):
     author = data.get("author")
     permalink = data.get("permalink")
     
-    title_ = unescape(data.get("title") or data.get("link_title"))
-
-    flair_text = data.get("link_flair_text")
-    
-    if flair_richtext := data.get("link_flair_richtext"):
-        flair_text = rich_text(flair_richtext, flair_text )
+    title_ = unescape(data.get("title"))
     
     domain = data.get("domain")
     votes = human_format(int(data.get("ups") or data.get("downs")))
@@ -344,11 +386,12 @@ def post(data, safe=False):
     
     post_info = post_info_div(subreddit_link(data["subreddit"]),"•", author, get_time(data["created"]), domain_link,  awards(data))
 
-    flair = builder(span(Class="flair"),Safe,unescape,flair_text) if flair_text else None
+    flair = post_flair(data)
+
+    inner = (title_link, flair, content)
     
-    inner = [title_link, flair, content]
-    
-    votes = (div(Class="votes")(span(Class="icon icon-upvote"), votes , span(Class="icon icon-downvote")))
+    votes = div(Class="votes")(span(Class="icon icon-upvote"), votes , span(Class="icon icon-downvote"))
+
     return post_div(votes, inner_post_div(post_info, inner))
 
 
@@ -394,7 +437,15 @@ def comment_flair(data):
     if flair_richtext := data.get("author_flair_richtext"):
         flair_text = rich_text(flair_richtext, flair_text )
     return builder(span(Class="flair"),Safe,unescape,flair_text) if flair_text else None
-    
+
+def post_flair(data):
+    flair_text = g(data, "link_flair_text", default=None)
+    if flair_richtext := data.get("link_flair_richtext"):
+        flair_text = rich_text(flair_richtext, flair_text )
+    return builder(span(Class="flair"),Safe,unescape,flair_text) if flair_text else None
+
+
+
 def comment(data, full=False):
     comment_ = data["data"]
     text = unescape(comment_["body_html"])
@@ -442,45 +493,60 @@ def replies(data):
     replies_ = ()
     if data['kind'] == "more":
         replies_ += p("...")
-    elif data['data']['replies']:
-        for children in data['data']['replies']['data']['children']:
-            if children['kind'] == "more":
-                replies_ += (p("..."),)
-            else:
-                comment_ = children["data"]
-                text = unescape(comment_["body_html"])
-                flair = comment_flair(comment_)
-                a_ = a(
-                    href=f'/u/{comment_["author"]}')(f'u/{comment_["author"]}')
-                link_ = a(href=comment_["permalink"])("🔗")
-                points = (span(human_format(int(comment_["ups"] or comment_["downs"]))), "points", "·" )
-                cin = (div(Class="comment-info")(
-                    a_,flair, points,
-                    get_time(comment_["created"]), link_),
-                    awards(comment_),
-                    Safe(text),
-                    replies(children))
-                replies_ += (li(div(Class="reply")(cin)),)
+
+    for children in g(data, "data.replies.data.children", default=[]):
+        if children['kind'] == "more":
+            replies_ += (p("..."),)
+        else:
+            comment_ = children["data"]
+            text = unescape(comment_["body_html"])
+            flair = comment_flair(comment_)
+            a_ = a(
+                href=f'/u/{comment_["author"]}')(f'u/{comment_["author"]}')
+            link_ = a(href=comment_["permalink"])("🔗")
+            points = (span(human_format(int(comment_["ups"] or comment_["downs"]))), "points", "·" )
+            cin = (div(Class="comment-info")(
+                a_,flair, points,
+                get_time(comment_["created"]), link_),
+                   awards(comment_),
+                   Safe(text),
+                   replies(children))
+            replies_ += (li(div(Class="reply")(cin)),)
     return ul(replies_) if replies else None
 
 
-def nav(
-        data,
-        subreddit=None,
-        option=None,
-        user=None,
-        time=None,
-        domain=None):
+
+@tuplefy
+def subreddit_nav(data, subreddit, option=None, time=None):
     buttons = ()
-    target = f"r/{subreddit}" if subreddit else f"u/{user}" if user else f"domain/{domain}" if domain else ""
+    target = f"r/{subreddit}" if subreddit else ""
+    
     if data["data"]["before"]:
-        buttons += (
-            before_link(
-                data, target, option or "", time),)
+        buttons += before_link(data, target, option, time)
     if data["data"]["after"]:
-        buttons += (
-            after_link(
-                data, target, option or "", time),)
+        buttons += after_link(data, target, option, time)
+
+    return div(Class="nav")(buttons) if buttons else ()
+
+@tuplefy
+def domain_nav(data, domain, option=None, time=None):
+    buttons = ()
+    target = f"domain/{domain}"
+    if data["data"]["before"]:
+        buttons += before_link(data, target, option, time)
+    if data["data"]["after"]:
+        buttons += after_link(data, target, option, time)
+
+    return div(Class="nav")(buttons) if buttons else ()
+
+@tuplefy
+def user_nav(data, user, option=None, time=None):
+    buttons = ()
+    target = f"u/{user}"
+    if data["data"]["before"]:
+        buttons += user_before_link(data, target, option, time)
+    if data["data"]["after"]:
+        buttons += user_after_link(data, target, option, time)
     return div(Class="nav")(buttons) if buttons else ()
 
 

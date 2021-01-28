@@ -33,19 +33,15 @@ def subreddit_page(subreddit=None, option=None):
         safe = not subreddit or subreddit in SAFE_SUBS
         
         if option in EXPANDED_OPTIONS:
-            content += (html.expanded_menu(subreddit, option or DEFAULT_OPTION, time))
+            content += (html.subreddit_sort_menu(subreddit, option or DEFAULT_OPTION, time))
         
         if option in ["gilded", "search"]:
             content += (html.mixed_content(
                 data["data"]["children"]) or html.nothing,)
         else:
             content += (html.posts(data, safe) or html.nothing,)
-        if nav := html.nav(
-                data,
-                subreddit,
-                option=option,
-                time=time):
-            content += (nav,)
+        content += html.subreddit_nav(data, subreddit, option, time)
+
         return html.page(title, header, content).render()
     else:
         return abort(r.status_code)
@@ -71,22 +67,17 @@ def domain_page(domain, option=None):
         header = html.page_header(domain=domain, q=q)
         content = ()
         content += (html.domain_menu(option, domain))
-
-        
         if option in EXPANDED_OPTIONS:
-            content += (html.expanded_domain_menu(domain, option or DEFAULT_OPTION, time))
+            content += (html.domain_sort_menu(domain, option or DEFAULT_OPTION, time))
         
         if option in ["gilded", "search"]:
             content += (html.mixed_content(
                 data["data"]["children"]) or html.nothing,)
         else:
             content += (html.posts(data, True) or html.nothing,)
-        if nav := html.nav(
-                data,
-                domain=domain,
-                option=option,
-                time=time):
-            content += (nav,)
+        
+        content += html.domain_nav(data,domain, option, time)
+
         return html.page(title, header, content).render()
     else:
         return abort(r.status_code)
@@ -129,8 +120,7 @@ def user_page(user, option="overview"):
             content += html.user_sort_menu(option, sort, user)
         content += (html.mixed_content(data["data"]["children"]),)
         header = html.page_header(user=user)
-        if nav := html.nav(data, user=user, option=option):
-            content += (nav,)
+        content += html.user_nav(data, user, option, sort)
         return html.page(title, header, content).render()
     else:
         return abort(r.status_code)

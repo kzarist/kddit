@@ -78,9 +78,7 @@ code {
     display:block;
 }
 
-.awarding-icon {
-    font-size: small;
-}
+
 
 .awarding-icon img {
     max-width: 16px;
@@ -300,6 +298,23 @@ hr {
     border:1px solid white;
 }
 
+.comment a, .reply a, .post-content a {
+    color:#0079D3;
+    text-decoration:underline;
+}
+
+.awarding-icon span {
+    font-size: small;
+}
+
+.awards .awarding-icon {
+    text-decoration:none;
+    color:#CCCCCC;
+}
+awarding-icon span {
+
+
+}
 
 .post .post {
     margin-top:5px;
@@ -331,6 +346,7 @@ hr {
 .comment-info a {
     color:#D7DADC;
     font-size:12px;
+    text-decoration:none;
 }
 
 .post-link {
@@ -342,6 +358,8 @@ hr {
     overflow: hidden;
     text-overflow: ellipsis;
 }
+
+
 
 .sub-link {
     font-size:14px;
@@ -429,7 +447,6 @@ ul {
 }
 
 blockquote {
-    color: #888;
     border-left: 3px solid #333;
     margin-left: 0px;
     padding-left: 15px;
@@ -585,3 +602,4 @@ p, h1, h2, h3 {
     }
 
 }
+
