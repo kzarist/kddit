@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from kddit.settings import HEADERS, TIMESHIFT, YDL_OPTS
+from kddit.settings import SUBREDDIT_OPTIONS, SAFE_SUBS, USER_OPTIONS
 import timeago
 import re
 import requests
@@ -8,8 +9,12 @@ from glom import glom as g
 from glom import Coalesce
 from bs4 import BeautifulSoup
 from html import unescape
+from bottle import request, abort
 
 ydl = youtube_dl.YoutubeDL(YDL_OPTS)
+
+def get_query():
+    return dict(request.query)
 
 def human_format(num):
     num = float('{:.3g}'.format(num))
@@ -44,6 +49,7 @@ def get_metadata(data, name):
     
 preview_re = re.compile("https://preview.redd.it/")
 processing_re = re.compile("Processing img (.*)...")
+
 def req(url, params=None):
     return requests.get(url, params=params, headers=HEADERS)
 
@@ -62,11 +68,35 @@ def builder(*args):
             obj = (arg(last),)
     return obj
 
-#def tuplefy(*args):
-#    return (*args,)
-
 def tuplefy(func):
     def inner(*args, **kwargs):
         result = func(*args, **kwargs)
         return (result,)
     return inner
+
+
+def get_subreddit_url():
+    sub = request.url_args.get("subreddit")
+    return f"/r/{sub}" if sub else ""
+
+def get_subreddit():
+    sub = request.url_args.get("subreddit")
+    return f"r/{sub}" if sub else ""
+
+def get_option():
+    option = request.url_args.get("option")
+    return option
+
+def verify_subreddit_option():
+    option = get_option()
+    if option and option not in SUBREDDIT_OPTIONS:
+        return abort(404)
+
+def verify_user_option():
+    option = get_option()
+    if option and option not in USER_OPTIONS:
+        return abort(404)
+
+def nsfw_mode(subreddit):
+    return not subreddit or subreddit in SAFE_SUBS
+

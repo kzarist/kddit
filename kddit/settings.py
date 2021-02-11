@@ -12,7 +12,10 @@ PROXY_ALLOW = {
         "i.ytimg.com",
         "www.redditstatic.com",
         "i.imgur.com",
-        "i.imgflip.com"],
+        "i.imgflip.com",
+        "external-preview.redd.it",
+        "thumbs.gfycat.com"
+    ],
     "video": [
         "v.redd.it",
         "youtu.be",
@@ -31,6 +34,7 @@ DEFAULT_OPTION = "hot"
 SUBREDDIT_OPTIONS = ["hot", "new", "top", "rising", "controversial", "gilded"]
 USER_OPTIONS = ["overview", "comments", "submitted", "gilded"]
 USER_SORT = ["hot", "new", "top", "controversial"]
+SEARCH_SORT = ["relevance", "top", "new", "comments"]
 EXPANDED_OPTIONS = ["top", "controversial"]
 TIME_OPTIONS = {
     "hour": "now",
