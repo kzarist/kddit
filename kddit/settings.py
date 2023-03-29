@@ -5,6 +5,7 @@ TIMESHIFT = int(app.config["kddit.timeshift"])
 
 PROXY_ALLOW = {
     "image": [
+        "preview.redd.it",
         "i.redd.it",
         "b.thumbs.redditmedia.com",
         "preview.redd.it",

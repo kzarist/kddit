@@ -11,7 +11,7 @@
 
 * {
     border-radius: 2px;
-    font-family:IBMPlexSans;
+    font-family: IBMPlexSans;
 }
 
 html {
@@ -39,17 +39,12 @@ details {
     bottom:0;
 }
 
-
 details > a {
     position: absolute;
     border-radius:0px !important;
     margin:0px !important;
     padding:0px !important;
 }
-
-
-
-
 
 pre code {
     display:inline-block;
@@ -65,20 +60,17 @@ code {
 
 .header {
     padding:5px;
-    display:inline-flex;
-    flex-direction: row;
+    display:flex;
+    flex-direction: column;
+    align-items: center;
     background-color:#1a1a1b;
-    flex-shrink: 0;
     border-radius:0px;
     border-bottom: 1px solid #343536;
-    
 }
 
 .awards {
     display:block;
 }
-
-
 
 .awarding-icon img {
     max-width: 16px;
@@ -102,8 +94,6 @@ a {
     color:#ffb734;
 }
 
-
-
 .title {
     display: inline-block;
     font-size: 28px;
@@ -113,7 +103,6 @@ a {
     color:#D7DADC;
     word-break:unset;
 }
-
 
 .button {
     max-width:300px;
@@ -191,6 +180,12 @@ hr {
     color:#ACA4F6;
 }
 
+.container {
+    max-width: 60em;
+    display: flex;
+    align-items: center;
+    margin: auto;
+}
 
 .content {
     flex-grow: 1;
@@ -201,8 +196,6 @@ hr {
     padding:20px 24px;
     word-break: break-word;
 }
-
-
 
 .comments {
     text-align:left;
@@ -290,9 +283,7 @@ hr {
     position:relative;
     padding-left:10px;
     padding-top: 5px;
-
 }
-
 
 .comment hr {
     border:1px solid white;
@@ -311,8 +302,8 @@ hr {
     text-decoration:none;
     color:#CCCCCC;
 }
-awarding-icon span {
 
+awarding-icon span {
 
 }
 
@@ -359,8 +350,6 @@ awarding-icon span {
     text-overflow: ellipsis;
 }
 
-
-
 .sub-link {
     font-size:14px;
 }
@@ -368,8 +357,6 @@ awarding-icon span {
 .sub-link:hover, .post-info a:hover {
     text-decoration:underline;
 }
-
-
 
 .inner-post {
     background-color:#1a1a1b;
@@ -383,8 +370,7 @@ awarding-icon span {
 
 .post-content {
     margin:auto;
-    overflow:auto;
-    
+    overflow:auto;    
 }
 
 .media {
@@ -416,7 +402,6 @@ awarding-icon span {
 .poll input {
     display:inline;
 }
-
 
 table, th, td {
     border: 1px solid #ACA4F6;
@@ -483,8 +468,6 @@ p, h1, h2, h3 {
     filter: none;
 }
 
-
-
 .menu {
     position:relative;
     background-color:#1a1a1b;
@@ -537,8 +520,6 @@ p, h1, h2, h3 {
     height:56px;
 }
 
-
-
 #search-bar {
     background-color: #272729;
     border-radius: 4px;
@@ -571,6 +552,7 @@ p, h1, h2, h3 {
 
     .content {
 	padding:10px 5px;
+	width: 95vw;
     }
 
     .hidden + .button {
@@ -600,6 +582,5 @@ p, h1, h2, h3 {
     .hidden + .button + div br {
 	display:block;
     }
-
 }
 
