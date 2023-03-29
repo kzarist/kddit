@@ -30,9 +30,11 @@ class path(Tag):
 def subreddit_link(sub):
     return a(Class="sub-link", href=f"/r/{sub}")(f"r/{sub}")
 
-
 def header_div(*args):
     return div(Class="header")(*args)
+
+def container_div(*args):
+    return div(Class="container")(*args)
 
 def content_div(*args):
     return div(Class="content")(*args)
@@ -82,6 +84,7 @@ def get_thumbnail(data):
     
 @tuplefy
 def alternate_video(data, url, safe=False):
+    return None # disabling for now
     opts = {}
     opts["src"] = f"/video/{url}"
     opts["controls"] = ""
@@ -102,7 +105,7 @@ def nsfw(data):
 
 @tuplefy
 def reddit_video(data, thumbnail=None, safe=False):
-    url = g(data, "media.reddit_video.dash_url")
+    url = g(data, "url")
     opts = {"controls":"", "src":f"/video/{url}"}
     opts["preload"] = "none"
     if not (nsfw(data) and safe):
@@ -138,7 +141,7 @@ def gallery(data, safe=False):
 
 def page(title_, header_, content_):
     head_ = head(title(unescape(title_)), default_head)
-    body_ = (header_div(header_), content_div(content_))
+    body_ = (header_div(header_), container_div(content_div(content_)))
     output = html(head_, body_)
     return output
 
@@ -166,7 +169,7 @@ def awards(data):
     output = []
     url = f'/{data["subreddit_name_prefixed"]}/gilded'
     for awarding in data["all_awardings"]:
-        award = [img(src=f'/proxy/{awarding["icon_url"]}')]
+        award = [img(src=f'/proxy/{unescape(awarding["resized_icons"][0]["url"])}', alt=awarding["name"])]
         count = awarding["count"]
         name = escape(awarding["name"])
         if count > 1:
@@ -175,8 +178,6 @@ def awards(data):
         output.append(a_)
                               
     return awards_div(output)
-
-
 
 @tuplefy
 def subreddit_menu(option, subreddit):
@@ -496,9 +497,6 @@ def post_flair(data):
         flair_text = rich_text(flair_richtext, flair_text )
     return builder(span(Class="flair"),Safe,unescape,flair_text) if flair_text else None
 
-
-
-
 def comment(data, full=False):
     comment_ = data["data"]
     text = unescape(comment_["body_html"])
@@ -622,8 +620,11 @@ def page_header(subreddit=None, user=None, domain=None, option=None, q=""):
     action = f"/r/{subreddit}/search" if subreddit else "/search"
     button = input_(Class="button", type="submit", value="")
     
-    header_ = (a(Class="main-icon",href="/")(img(src="/static/favicon.svg")),)
-    header_ += (form(method="GET", action=action)(input_(name="q", required="", id="search-bar", placeholder=q or placeholder, value=q), button),)
+    header_ = (a(Class="main-link",href="/")("kddit"),)
+    if subreddit:
+        header_ += (a(Class="subreddit-link", href=f"/r/{subreddit}")(f"/r/{subreddit}"),)
+
+    #header_ += (form(method="GET", action=action)(input_(name="q", required="", id="search-bar", placeholder=q or placeholder, value=q), button),)
     
     return header_
 
