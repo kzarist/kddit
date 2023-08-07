@@ -162,6 +162,22 @@ def post_content(data, safe):
             replace_tag(preview_em , r_image)
     return builder(post_content_div, Safe,str,soup)
 
+def comment_content(data, safe):
+    text = unescape(data["body_html"])
+    soup = BeautifulSoup(text, "html.parser")
+    for preview_link in soup.find_all("a", href=preview_re):
+        url = preview_link.attrs["href"]
+        preview_text = preview_link.text
+        caption = preview_text if preview_text != url else None
+        r_image = reddit_image(data, url, safe, text=caption)
+        replace_tag(preview_link.parent, r_image)
+    for preview_em in soup.find_all("em", string=processing_re):
+        name = processing_re.match(preview_em.text).group(1)
+        if url := get_metadata(data, name):
+            r_image = reddit_image(data, url, safe)
+            replace_tag(preview_em , r_image)
+    return builder(comment_content_div, Safe,str,soup)
+
 def awards(data):
     if not "all_awardings" in data:
         return
@@ -512,7 +528,7 @@ def comment(data, full=False):
             a(href=comment_["permalink"])(b(title_)),
             div(Class="comment-info")(header_),
             awards(comment_),
-            comment_content_div(Safe(text))
+            comment_content(comment_, True)
         )
         return div(Class="comment")(inner)
     else:
@@ -524,7 +540,7 @@ def comment(data, full=False):
             a_,flair, points,
             get_time(comment_["created"]), link_),
             awards(comment_),
-            comment_content_div(Safe(text)),
+            comment_content(comment_, True),
                replies_)
         return div(Class="comment")(inner)
 
@@ -541,7 +557,7 @@ def reply(data):
         a_,flair, points,
         get_time(comment_["created"]), link_),
            awards(comment_),
-           Safe(text),
+           comment_content(comment_, True),
            replies_)
     return div(Class="reply")(inner)
 
