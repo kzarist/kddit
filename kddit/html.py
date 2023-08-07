@@ -118,7 +118,7 @@ def reddit_video(data, thumbnail=None, safe=False):
 
 @tuplefy
 def reddit_image(data, url=None, safe=False, text=None):
-    url = url or data["url"] 
+    url = url or unescape(g(data, "preview.images.-1.source.url"))
     image_ = media_div(img(src=f'/proxy/{url}'), em(text))
     if nsfw(data) and safe:
         output = nsfw_label(image_)
