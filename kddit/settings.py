@@ -7,7 +7,10 @@ PROXY_ALLOW = {
     "image": [
         "preview.redd.it",
         "i.redd.it",
+        "v.redd.it",
         "b.thumbs.redditmedia.com",
+        "society.kalli.st",
+        "i.kalli.st",
         "preview.redd.it",
         "emoji.redditmedia.com",
         "i.ytimg.com",

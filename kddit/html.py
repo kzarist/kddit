@@ -79,21 +79,26 @@ def nsfw_label(arg):
     return label(input_(Class="nsfw", type="checkbox"),arg)
 
 def get_thumbnail(data):
-    thumbnail = g(data, Coalesce("secure_media.oembed.thumbnail_url", "preview.images.0.source.url"), default="")
-    return unescape(thumbnail)
-    
+    thumbnail = g(data, Coalesce("secure_media.oembed.thumbnail_url", "preview.images.-1.source.url"), default="")
+    return f"/proxy/{unescape(thumbnail)}" if thumbnail else None
+
+def get_video(data):
+    is_gif = g(data, "media.reddit_video.is_gif", default=False)
+    url = g(data, "url") if not is_gif else g(data, "media.reddit_video.fallback_url")
+    return f"/video/{url}" if not is_gif else f"/proxy/{url}"
+
 @tuplefy
 def alternate_video(data, url, safe=False):
     return None # disabling for now
     opts = {}
     opts["src"] = f"/video/{url}"
     opts["controls"] = ""
-    thumbnail = get_thumbnail(data)
+    
     if nsfw(data) and safe:
         opts["preload"] = "none"
-    elif thumbnail:
+    elif thumbnail := get_thumbnail(data):
         opts["preload"] = "none"
-        opts["poster"] = f"/proxy/{thumbnail}"        
+        opts["poster"] = thumbnail
     else:
         opts["preload"] = "metadata"
         
@@ -104,13 +109,14 @@ def nsfw(data):
     return data.get("over_18")
 
 @tuplefy
-def reddit_video(data, thumbnail=None, safe=False):
-    url = g(data, "url")
-    opts = {"controls":"", "src":f"/video/{url}"}
+def reddit_video(data, safe=False):
+    is_gif = g(data, "media.reddit_video.is_gif", default=False)
+    url = g(data, "url") if not is_gif else g(data, "media.reddit_video.fallback_url")
+    opts = {"controls":""}
     opts["preload"] = "none"
+    opts["src"] = get_video(data)
     if not (nsfw(data) and safe):
-        thumbnail = get_thumbnail(data)
-        opts["poster"] = f"/proxy/{thumbnail}"
+        opts["poster"] = get_thumbnail(data)
 
     video_ = video(**opts)
     output = media_div(video_)
@@ -118,7 +124,7 @@ def reddit_video(data, thumbnail=None, safe=False):
 
 @tuplefy
 def reddit_image(data, url=None, safe=False, text=None):
-    url = url or unescape(g(data, "preview.images.-1.source.url"))
+    url = url or unescape(g(data, Coalesce("preview.images.-1.source.url", "url")))
     image_ = media_div(img(src=f'/proxy/{url}'), em(text))
     if nsfw(data) and safe:
         output = nsfw_label(image_)
@@ -180,8 +186,7 @@ def comment_content(data, safe):
 
 def awards(data):
     if not "all_awardings" in data:
-        return
-    
+        return None
     output = []
     url = f'/{data["subreddit_name_prefixed"]}/gilded'
     for awarding in data["all_awardings"]:
@@ -276,6 +281,19 @@ def domain_sort_menu(domain, option, time=None):
     
     return menu_div(output)
 
+@tuplefy
+def multi_sort_menu(user, multi, option, time=None):
+    p = f"/u/{user}/m/{multi}"
+    focused = time or "hour"
+    output = []
+    for i, v in TIME_OPTIONS.items():
+        focus = i == focused
+        url = f'{p}/{option}?t={i}'
+        a_ = a(Class="focus",href=url)(v) if focus else a(href=url)(v)
+        output.append(a_)
+
+    return menu_div(output)
+
 
 @tuplefy
 def user_menu(option, user):
@@ -298,6 +316,19 @@ def user_sort_menu(option, sort, user):
         focus = o == focused
         link_ = f"/u/{user}/{option}/?sort={o}"
         a_ = a(href=link_, Class="focus")(o) if focus else a(href=link_)(o)
+        output.append(a_)
+    return menu_div(output)
+
+@tuplefy
+def multi_menu(option, user, multi):
+    output = []
+    for o in SUBREDDIT_OPTIONS:
+        focus = option == o or (not option and o == DEFAULT_OPTION)
+        link_ = f"/u/{user}/m/{multi}/{o}"
+        if focus:
+            a_ = a(href=link_, Class="focus")(o)
+        else:
+            a_ = a(href=link_)(o)
         output.append(a_)
     return menu_div(output)
 
@@ -403,9 +434,9 @@ def reddit_media(data, safe):
     return post_content_div(output)
     
 def reddit_content(data, safe=False):
-    if data["selftext_html"]:
+    if data.get("selftext_html"):
         output = post_content(data, safe)
-    elif data["is_reddit_media_domain"] and data["thumbnail"]:
+    elif data.get("is_reddit_media_domain") and data.get("thumbnail"):
         output = reddit_media(data, safe)
     elif data.get("is_gallery"):
         output = gallery(data, safe=safe)
@@ -438,7 +469,7 @@ def post(data, safe=False):
     elif data.get("poll_data"):
         content = poll(data)
     else:
-        content = reddit_content(data, safe) or alternate_content(data, safe=safe)
+        content = reddit_content(data, safe) or alternate_content(data, safe)
 
     author = data.get("author")
     permalink = data.get("permalink")
@@ -630,18 +661,28 @@ def user_nav(data, user, option=None, time=None):
         buttons += user_after_link(data, target, option, time)
     return div(Class="nav")(buttons) if buttons else ()
 
+@tuplefy
+def multi_nav(data, user, multi, option=None, time=None):
+    buttons = ()
+    target = f"u/{user}/m/{multi}"
+    if data["data"]["before"]:
+        buttons += user_before_link(data, target, option, time)
+    if data["data"]["after"]:
+        buttons += user_after_link(data, target, option, time)
+    return div(Class="nav")(buttons) if buttons else ()
 
-def page_header(subreddit=None, user=None, domain=None, option=None, q=""):
-    placeholder = "search"
-    action = f"/r/{subreddit}/search" if subreddit else "/search"
-    button = input_(Class="button", type="submit", value="")
-    
+
+def page_header(subreddit=None, user=None, multi=None, domain=None):
     header_ = (a(Class="main-link",href="/")("kddit"),)
     if subreddit:
-        header_ += (a(Class="subreddit-link", href=f"/r/{subreddit}")(f"/r/{subreddit}"),)
-
-    #header_ += (form(method="GET", action=action)(input_(name="q", required="", id="search-bar", placeholder=q or placeholder, value=q), button),)
-    
+        header_ += (a(Class="subreddit-link", href=f"/r/{subreddit}")(f"r/{subreddit}"),)
+    elif multi and user:
+        header_ += (a(Class="subreddit-link", href=f"/u/{user}/m/{multi}")(f"u/{user}/m/{multi}"),)
+    elif user:
+        header_ += (a(Class="subreddit-link", href=f"/u/{user}")(f"u/{user}"),)
+    elif domain:
+        header_ += (a(Class="subreddit-link", href=f"/domain/{domain}")(f"domain/{domain}"),)
+        
     return header_
 
 def error_page(error):

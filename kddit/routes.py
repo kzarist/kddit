@@ -40,6 +40,16 @@ def user_content(data, user, option, sort):
     content += html.user_nav(data, user, option, sort)
     return content
 
+
+def multi_content(data, user, multi, option, sort):
+    content = html.multi_menu(option, user, multi)
+    if option != "gilded":
+        content += html.multi_sort_menu(user, multi, option, sort)
+    content += (html.mixed_content(data, True),)
+    content += html.multi_nav(data, user, multi, option, sort)
+    return content
+
+
 @app.route("/search", "GET")
 @app.route("/r/<subreddit>/search", "GET")
 def search_page(subreddit=None):
@@ -58,6 +68,27 @@ def search_page(subreddit=None):
     else:
         return abort(r.status_code)
 
+
+@app.route("/u/<user>/m/<multi>", "GET")
+@app.route("/user/<user>/m/<multi>", "GET")
+@app.route("/u/<user>/m/<multi>/<option>", "GET")
+@app.route("/user/<user>/m/<multi>/<option>", "GET")
+def multi_page(user, multi=None ,option=None):
+    verify_subreddit_option()
+    url = f"https://old.reddit.com/user/{user}/m/{multi}/{option or DEFAULT_OPTION}/.json"
+    query = dict(request.query)
+    r = req(url, query)
+    if success(r):
+        data = r.json()
+        sort = query.get("t")
+        title = f"m/{multi} by u/{user}"
+        header = html.page_header(user=user, multi=multi)
+        content = multi_content(data, user, multi, option, sort)
+        return html.page(title, header, content).render()
+    else:
+        return abort(r.status_code)
+
+
 @app.route("/u/<user>", "GET")
 @app.route("/user/<user>", "GET")
 @app.route("/u/<user>/<option>", "GET")
@@ -70,7 +101,7 @@ def user_page(user, option="overview"):
     if success(r):
         data = r.json()
         sort = query.get("sort")
-        title = f"{option} by {user}"
+        title = f"{option} by u/{user}"
         header = html.page_header(user=user)
         content = user_content(data, user, option, sort)
         return html.page(title, header, content).render()
@@ -108,7 +139,7 @@ def domain_page(domain, option=None):
     if success(r):
         data = r.json()
         title = domain
-        header = html.page_header(domain=domain, q=q)
+        header = html.page_header(domain=domain)
         content = domain_content(data, domain, option, time)
         return html.page(title, header, content).render()
     else:
