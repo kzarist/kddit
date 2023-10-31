@@ -51,9 +51,6 @@ def media_div(*args):
 def menu_div(*args):
     return div(Class="menu")(*args)
 
-def awards_div(*args):
-    return div(Class="awards")(*args)
-
 def post_info_div(*args):
     return div(Class="post-info")(*args)
 
@@ -184,21 +181,6 @@ def comment_content(data, safe):
             replace_tag(preview_em , r_image)
     return builder(comment_content_div, Safe,str,soup)
 
-def awards(data):
-    if not "all_awardings" in data:
-        return None
-    output = []
-    url = f'/{data["subreddit_name_prefixed"]}/gilded'
-    for awarding in data["all_awardings"]:
-        award = [img(src=f'/proxy/{unescape(awarding["resized_icons"][0]["url"])}', alt=awarding["name"])]
-        count = awarding["count"]
-        name = escape(awarding["name"])
-        if count > 1:
-            award.append(span(count))
-        a_ = a(href=url, Class="awarding-icon", title=name)(award)
-        output.append(a_)
-                              
-    return awards_div(output)
 
 @tuplefy
 def subreddit_menu(option, subreddit):
@@ -484,7 +466,7 @@ def post(data, safe=False):
 
     title_link = builder(a(href=permalink),Safe,b,title_)
     
-    post_info = post_info_div(subreddit_link(data["subreddit"]),"•", author, get_time(data["created"]), domain,  awards(data))
+    post_info = post_info_div(subreddit_link(data["subreddit"]),"•", author, get_time(data["created"]), domain)
 
     flair = post_flair(data)
 
@@ -558,7 +540,6 @@ def comment(data, full=False):
         inner = (
             a(href=comment_["permalink"])(b(title_)),
             div(Class="comment-info")(header_),
-            awards(comment_),
             comment_content(comment_, True)
         )
         return div(Class="comment")(inner)
@@ -570,7 +551,6 @@ def comment(data, full=False):
         inner = (div(Class="comment-info")(
             a_,flair, points,
             get_time(comment_["created"]), link_),
-            awards(comment_),
             comment_content(comment_, True),
                replies_)
         return div(Class="comment")(inner)
@@ -587,7 +567,6 @@ def reply(data):
     inner = (div(Class="comment-info")(
         a_,flair, points,
         get_time(comment_["created"]), link_),
-           awards(comment_),
            comment_content(comment_, True),
            replies_)
     return div(Class="reply")(inner)

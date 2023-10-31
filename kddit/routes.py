@@ -1,10 +1,9 @@
-from bottle import request, response, abort, redirect, static_file
+from bottle import request, response, abort, static_file
 from kddit import app
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse
 from kddit.settings import *
-from kddit.utils import req, success, get_thumbnail, ydl
+from kddit.utils import req, success, ydl
 from kddit import html
-from kddit.utils import tuplefy as t
 from kddit.utils import verify_subreddit_option, verify_user_option
 from kddit.utils import get_subreddit_url, get_subreddit
 from kddit.utils import nsfw_mode, get_query
@@ -34,8 +33,7 @@ def domain_content(data, domain, option, time):
 
 def user_content(data, user, option, sort):
     content = html.user_menu(option, user)
-    if option != "gilded":
-        content += html.user_sort_menu(option, sort, user)
+    content += html.user_sort_menu(option, sort, user)
     content += (html.mixed_content(data, True),)
     content += html.user_nav(data, user, option, sort)
     return content
@@ -43,8 +41,7 @@ def user_content(data, user, option, sort):
 
 def multi_content(data, user, multi, option, sort):
     content = html.multi_menu(option, user, multi)
-    if option != "gilded":
-        content += html.multi_sort_menu(user, multi, option, sort)
+    content += html.multi_sort_menu(user, multi, option, sort)
     content += (html.mixed_content(data, True),)
     content += html.multi_nav(data, user, multi, option, sort)
     return content
@@ -108,6 +105,7 @@ def user_page(user, option="overview"):
     else:
         return abort(r.status_code)
 
+
 @app.route("/", "GET")
 @app.route("/<option>", "GET")
 @app.route("/r/<subreddit>", "GET")
@@ -146,7 +144,6 @@ def domain_page(domain, option=None):
         return abort(r.status_code)
 
 
-
 @app.route("/r/<subreddit>/comments/<post_id>/<path>", "GET")
 @app.route("/r/<subreddit>/comments/<post_id>/<path>/<comment_id>", "GET")
 def post_page(subreddit, post_id, path, comment_id=""):
@@ -163,7 +160,6 @@ def post_page(subreddit, post_id, path, comment_id=""):
         return html.page(title, header, content).render()
     else:
         return abort(r.status_code)
-
 
 
 @app.route("/static/<file>")
@@ -206,11 +202,13 @@ def proxy(url):
     else:
         return abort(r.status_code)
 
+
 @app.error(401)
 @app.error(403)
 @app.error(404)
 @app.error(405)
 @app.error(406)
+@app.error(429)
 @app.error(451)
 @app.error(500)
 @app.error(503)

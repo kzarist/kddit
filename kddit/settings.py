@@ -35,8 +35,8 @@ PROXY_ALLOW = {
 }
 
 DEFAULT_OPTION = "hot"
-SUBREDDIT_OPTIONS = ["hot", "new", "top", "rising", "controversial", "gilded"]
-USER_OPTIONS = ["overview", "comments", "submitted", "gilded"]
+SUBREDDIT_OPTIONS = ["hot", "new", "top", "rising", "controversial"]
+USER_OPTIONS = ["overview", "comments", "submitted"]
 USER_SORT = ["hot", "new", "top", "controversial"]
 SEARCH_SORT = ["relevance", "top", "new", "comments"]
 EXPANDED_OPTIONS = ["top", "controversial"]
@@ -64,4 +64,3 @@ YDL_OPTS = {
     'merge-output-format': 'mp4',
     'outtmpl': FILE_PATH + '%(id)s.%(ext)s'
 }
-

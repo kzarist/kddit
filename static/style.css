@@ -68,15 +68,6 @@ code {
     border-bottom: 1px solid #343536;
 }
 
-.awards {
-    display:block;
-}
-
-.awarding-icon img {
-    max-width: 16px;
-    max-height: 16px;
-}
-
 a {
     color:#D7DADC;
     font-weight: bold;
@@ -292,19 +283,6 @@ hr {
 .comment-content a, .reply a, .post-content a {
     color:#0079D3;
     text-decoration:underline;
-}
-
-.awarding-icon span {
-    font-size: small;
-}
-
-.awards .awarding-icon {
-    text-decoration:none;
-    color:#CCCCCC;
-}
-
-awarding-icon span {
-
 }
 
 .post .post {

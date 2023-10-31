@@ -46,7 +46,7 @@ def replace_tag(bs_tag, html_tag):
 def get_metadata(data, name):
     output = g(data, Coalesce(f"media_metadata.{name}.s.u", f"media_metadata.{name}.s.gif"), default=None)
     return unescape(output) if output else None
-    
+
 preview_re = re.compile("https://preview.redd.it/")
 processing_re = re.compile("Processing img (.*)...")
 
@@ -99,4 +99,3 @@ def verify_user_option():
 
 def nsfw_mode(subreddit):
     return not subreddit or subreddit in SAFE_SUBS
-
