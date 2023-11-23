@@ -47,6 +47,8 @@ def get_metadata(data, name):
     output = g(data, Coalesce(f"media_metadata.{name}.s.u", f"media_metadata.{name}.s.gif"), default=None)
     return unescape(output) if output else None
 
+
+external_preview_re = re.compile("https://external-preview.redd.it/")
 preview_re = re.compile("https://preview.redd.it/")
 processing_re = re.compile("Processing img (.*)...")
 

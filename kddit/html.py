@@ -5,7 +5,7 @@ from glom import glom as g
 from glom import Coalesce
 from kddit.settings import *
 from urllib.parse import urlparse, parse_qs, urlencode
-from kddit.utils import get_time, human_format, preview_re, builder, processing_re
+from kddit.utils import get_time, human_format, preview_re, external_preview_re, builder, processing_re
 from kddit.utils import tuplefy, get_metadata, replace_tag
 
 nothing = (p("there doesn't seem to be anything here"),)
@@ -174,6 +174,9 @@ def comment_content(data, safe):
         caption = preview_text if preview_text != url else None
         r_image = reddit_image(data, url, safe, text=caption)
         replace_tag(preview_link.parent, r_image)
+    for preview_img in soup.find_all("img", src=external_preview_re):
+        url = preview_img.attrs["src"]
+        preview_img.attrs["src"] = f'/proxy/{url}'
     for preview_em in soup.find_all("em", string=processing_re):
         name = processing_re.match(preview_em.text).group(1)
         if url := get_metadata(data, name):
