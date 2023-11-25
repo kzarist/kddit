@@ -5,7 +5,7 @@ from glom import glom as g
 from glom import Coalesce
 from kddit.settings import *
 from urllib.parse import urlparse, parse_qs, urlencode
-from kddit.utils import get_time, human_format, preview_re, external_preview_re, builder, processing_re
+from kddit.utils import get_time, human_format, preview_re, external_preview_re, builder, processing_re, video_re
 from kddit.utils import tuplefy, get_metadata, replace_tag
 
 nothing = (p("there doesn't seem to be anything here"),)
@@ -108,13 +108,21 @@ def nsfw(data):
 @tuplefy
 def reddit_video(data, safe=False):
     is_gif = g(data, "media.reddit_video.is_gif", default=False)
-    url = g(data, "url") if not is_gif else g(data, "media.reddit_video.fallback_url")
     opts = {"controls":""}
     opts["preload"] = "none"
     opts["src"] = get_video(data)
     if not (nsfw(data) and safe):
         opts["poster"] = get_thumbnail(data)
 
+    video_ = video(**opts)
+    output = media_div(video_)
+    return output
+
+@tuplefy
+def reddit_embed_video(url, safe=False):
+    opts = {"controls":""}
+    #opts["preload"] = "auto" if safe else "none"
+    opts["src"] = f'/video/{url}'
     video_ = video(**opts)
     output = media_div(video_)
     return output
@@ -152,6 +160,11 @@ def page(title_, header_, content_):
 def post_content(data, safe):
     text = unescape(data["selftext_html"])
     soup = BeautifulSoup(text, "html.parser")
+    for video_link in soup.find_all("a", href=video_re):
+        url = video_link.attrs["href"]
+        name = video_re.match(url).group(1)
+        r_video = reddit_embed_video(f"https://v.redd.it/{name}", safe=safe)
+        replace_tag(video_link.parent, r_video)
     for preview_link in soup.find_all("a", href=preview_re):
         url = preview_link.attrs["href"]
         preview_text = preview_link.text
