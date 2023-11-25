@@ -121,7 +121,7 @@ def reddit_video(data, safe=False):
 @tuplefy
 def reddit_embed_video(url, safe=False):
     opts = {"controls":""}
-    #opts["preload"] = "auto" if safe else "none"
+    opts["preload"] = "none" if safe else "auto"
     opts["src"] = f'/video/{url}'
     video_ = video(**opts)
     output = media_div(video_)
