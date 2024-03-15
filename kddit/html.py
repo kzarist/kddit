@@ -456,6 +456,8 @@ def rich_text(richtext, text):
 def domain_link(data):
     if data.get("is_self"):
         return None
+    elif data.get("author") == "[deleted]":
+        return None
     domain = data.get("domain")
     domain_url = f"/domain/{domain}"
     return ("(", a(href=domain_url)(f"{domain}"), ")")
@@ -472,6 +474,8 @@ def post(data, safe=False):
         content += post(data['crosspost_parent_list'][0], True)
     elif data.get("poll_data"):
         content += poll(data)
+    elif data.get("author") == "[deleted]":
+        pass
     elif result := reddit_content(data, safe) or alternate_content(data, safe):
         content += (result,)
 
