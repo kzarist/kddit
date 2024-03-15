@@ -410,7 +410,7 @@ def imgur_media(data, url, safe):
 
 def alternate_content(data, safe=False):
     url = data["url"]
-    output = (a(Class="post-link",href=url)(url),)
+    output = ()
     uri = urlparse(url)
     netloc = uri.netloc
     if netloc in PROXY_ALLOW["youtube"]:
@@ -426,7 +426,7 @@ def alternate_content(data, safe=False):
     return post_content_div(output)
 
 def reddit_media(data, safe):
-    output = (a(Class="post-link", href=data["url"])(data["url"]),)
+    output = ()
     if data["is_video"]:
         output += reddit_video(data, safe=safe)
     else:
@@ -463,6 +463,9 @@ def domain_link(data):
 @tuplefy
 def post(data, safe=False):
     content = ()
+    if not data.get("is_self") and not data.get("crosspost_parent_list"):
+        content += (a(Class="post-link",href=data["url"])(data["url"]),)
+
     if data.get("selftext_html"):
         content += post_content(data, safe)
     if data.get("crosspost_parent_list"):
@@ -471,9 +474,6 @@ def post(data, safe=False):
         content += poll(data)
     elif result := reddit_content(data, safe) or alternate_content(data, safe):
         content += (result,)
-    elif not data.get("is_self"):
-        content += (a(Class="post-link", href=data["url"])(data["url"]),)
-
 
     author = data.get("author")
     permalink = data.get("permalink")
