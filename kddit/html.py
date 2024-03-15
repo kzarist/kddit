@@ -501,7 +501,7 @@ def post(data, safe=False):
 
     return post_div(votes, inner_post_div(post_info, inner))
 
-
+@tuplefy
 def poll(data):
     options = ()
     tvotes = g(data,"poll_data.total_vote_count")
