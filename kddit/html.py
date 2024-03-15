@@ -69,7 +69,7 @@ def slider_media(arg):
     slider = li(Class="slide", tabindex=1)
     outer = span(Class="slide-outer")
     inner = span(Class="slide-inner")
-    gfx = span(Class="slide-gfx")(arg)    
+    gfx = span(Class="slide-gfx")(arg)
     return builder(slider, outer, inner, gfx)
 
 def nsfw_label(arg):
@@ -90,7 +90,7 @@ def alternate_video(data, url, safe=False):
     opts = {}
     opts["src"] = f"/video/{url}"
     opts["controls"] = ""
-    
+
     if nsfw(data) and safe:
         opts["preload"] = "none"
     elif thumbnail := get_thumbnail(data):
@@ -98,7 +98,7 @@ def alternate_video(data, url, safe=False):
         opts["poster"] = thumbnail
     else:
         opts["preload"] = "metadata"
-        
+
     video_ = media_div(video(**opts))
     return video_
 
@@ -138,7 +138,7 @@ def reddit_image(data, url=None, safe=False, text=None):
     return output
 
 def gallery(data, safe=False):
-    output = (a(Class="post-link",href=data["url"])(data["url"]),)
+    output = ()
     images = ()
     for item in reversed(g(data,"gallery_data.items", default=[])):
         media_id = item["media_id"]
@@ -147,7 +147,7 @@ def gallery(data, safe=False):
             images += reddit_image(data, url, safe)
     if images:
         output += slider((slider_media(media) for media in images))
-        
+
     return output
 
 def page(title_, header_, content_):
@@ -233,7 +233,7 @@ def search_sort_menu(subreddit, params):
 @tuplefy
 def search_time_menu(subreddit, params):
     output = []
-    focused = params.get("t", "hour") 
+    focused = params.get("t", "hour")
     for i, v in TIME_OPTIONS.items():
         query = params.copy()
         query["t"] = i
@@ -242,7 +242,7 @@ def search_time_menu(subreddit, params):
         url = f"{sub}/search?{urlencode(query)}"
         a_ = a(Class="focus",href=url)(v) if focus else a(href=url)(v)
         output.append(a_)
-    
+
     return menu_div(output)
 
 
@@ -253,7 +253,7 @@ def domain_menu(option, domain):
     for o in SUBREDDIT_OPTIONS:
         focus = o == focused
         url = f"/domain/{domain}/{o}"
-        a_ = a(href=url, Class="focus")(o) if focus else a(href=url)(o)        
+        a_ = a(href=url, Class="focus")(o) if focus else a(href=url)(o)
         output.append(a_)
 
     return menu_div(output)
@@ -268,7 +268,7 @@ def subreddit_sort_menu(subreddit, option, time=None):
         url = f'{p}/{option}?t={i}'
         a_ = a(Class="focus",href=url)(v) if focus else a(href=url)(v)
         output.append(a_)
-    
+
     return menu_div(output)
 
 @tuplefy
@@ -280,7 +280,7 @@ def domain_sort_menu(domain, option, time=None):
         url = f"/domain/{domain}/{option}?t={i}"
         a_ = a(Class="focus",href=url)(v) if focus else a(href=url)(v)
         output.append(a_)
-    
+
     return menu_div(output)
 
 @tuplefy
@@ -408,7 +408,6 @@ def imgur_media(data, url, safe):
         output = alternate_video(data, url, safe=safe)
     else:
         output = reddit_image(data, safe=safe)
-
     return output
 
 def alternate_content(data, safe=False):
@@ -416,7 +415,6 @@ def alternate_content(data, safe=False):
     output = (a(Class="post-link",href=url)(url),)
     uri = urlparse(url)
     netloc = uri.netloc
-    
     if netloc in PROXY_ALLOW["youtube"]:
         output += youtube_media(data, url, uri, safe)
     elif netloc in PROXY_ALLOW["video"]:
@@ -469,23 +467,25 @@ def post(data, safe=False):
     content = ()
     if data.get("selftext_html"):
         content += post_content(data, safe)
-
     if data.get("crosspost_parent_list"):
         content += post(data['crosspost_parent_list'][0], True)
     elif data.get("poll_data"):
         content += poll(data)
     elif result := reddit_content(data, safe) or alternate_content(data, safe):
         content += (result,)
+    elif g(data, "post_hint", default=None) == 'link':
+        content += (a(Class="post-link", href=data["url"])(data["url"]),)
+
 
     author = data.get("author")
     permalink = data.get("permalink")
-    
+
     title_ = unescape(data.get("title"))
 
     domain = domain_link(data)
-    
+
     votes = human_format(int(data.get("ups") or data.get("downs")))
-    
+
     author = ("Posted by", a(href=f'/u/{author}')(f'u/{author}'))
 
     title_link = builder(a(href=permalink),Safe,b,title_)
@@ -496,7 +496,10 @@ def post(data, safe=False):
 
     inner = (title_link, flair, content)
 
-    votes = div(Class="votes")(span(Class="icon icon-upvote"), votes , span(Class="icon icon-downvote"))
+    votes = div(Class="votes")(
+        span(Class="icon icon-upvote"),
+        votes,
+    )
 
     return post_div(votes, inner_post_div(post_info, inner))
 
@@ -560,7 +563,7 @@ def comment(data, full=False):
         header_ += ("by", a(href=f'/u/{comment_["author"]}')(f'u/{comment_["author"]}'),flair)
         header_ += ("in", subreddit_link(comment_["subreddit"]))
         header_ += (get_time(comment_["created"]),)
-        
+
         inner = (
             a(href=comment_["permalink"])(b(title_)),
             div(Class="comment-info")(header_),
@@ -624,7 +627,7 @@ def replies(data):
 def subreddit_nav(data, subreddit, option=None, time=None):
     buttons = ()
     target = f"r/{subreddit}" if subreddit else ""
-    
+
     if data["data"]["before"]:
         buttons += before_link(data, target, option, time)
     if data["data"]["after"]:
@@ -685,7 +688,7 @@ def page_header(subreddit=None, user=None, multi=None, domain=None):
         header_ += (a(Class="subreddit-link", href=f"/u/{user}")(f"u/{user}"),)
     elif domain:
         header_ += (a(Class="subreddit-link", href=f"/domain/{domain}")(f"domain/{domain}"),)
-        
+
     return header_
 
 def error_page(error):
