@@ -39,8 +39,8 @@ def get_thumbnail(url):
         return ""
 
 def replace_tag(bs_tag, html_tag):
-    html_tag = html_tag[0] if isinstance(html_tag, tuple) else html_tag
-    soup = BeautifulSoup(html_tag.render(), "html.parser")
+    tag = html_tag[0] if isinstance(html_tag, tuple) else html_tag
+    soup = BeautifulSoup(tag.render(), "html.parser")
     bs_tag.replace_with(soup)
 
 def get_metadata(data, name):

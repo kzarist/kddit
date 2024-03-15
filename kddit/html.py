@@ -158,8 +158,11 @@ def page(title_, header_, content_):
 
 
 def post_content(data, safe):
+    output = ()
     text = unescape(data["selftext_html"])
     soup = BeautifulSoup(text, "html.parser")
+    if not data["is_self"]:
+        output += (a(Class="post-link", href=data["url"])(data["url"]),)
     for video_link in soup.find_all("a", href=video_re):
         url = video_link.attrs["href"]
         name = video_re.match(url).group(1)
@@ -176,7 +179,8 @@ def post_content(data, safe):
         if url := get_metadata(data, name):
             r_image = reddit_image(data, url, safe)
             replace_tag(preview_em , r_image)
-    return builder(post_content_div, Safe,str,soup)
+    output += (post_content_div(Safe(str(soup))),)
+    return output
 
 def comment_content(data, safe):
     text = unescape(data["body_html"])
@@ -186,7 +190,7 @@ def comment_content(data, safe):
         preview_text = preview_link.text
         caption = preview_text if preview_text != url else None
         r_image = reddit_image(data, url, safe, text=caption)
-        replace_tag(preview_link.parent, r_image)
+        replace_tag(preview_link, r_image)
     for preview_img in soup.find_all("img", src=external_preview_re):
         url = preview_img.attrs["src"]
         preview_img.attrs["src"] = f'/proxy/{url}'
@@ -421,6 +425,8 @@ def alternate_content(data, safe=False):
         output += imgur_media(data, url, safe)
     elif netloc in PROXY_ALLOW["image"]:
         output += reddit_image(data, safe=safe)
+    else:
+        return None
     return post_content_div(output)
 
 def reddit_media(data, safe):
@@ -430,11 +436,9 @@ def reddit_media(data, safe):
     else:
         output += reddit_image(data, safe=safe)
     return post_content_div(output)
-    
+
 def reddit_content(data, safe=False):
-    if data.get("selftext_html"):
-        output = post_content(data, safe)
-    elif data.get("is_reddit_media_domain") and data.get("thumbnail"):
+    if data.get("is_reddit_media_domain") and data.get("thumbnail"):
         output = reddit_media(data, safe)
     elif data.get("is_gallery"):
         output = gallery(data, safe=safe)
@@ -462,12 +466,16 @@ def domain_link(data):
 
 @tuplefy
 def post(data, safe=False):
+    content = ()
+    if data.get("selftext_html"):
+        content += post_content(data, safe)
+
     if data.get("crosspost_parent_list"):
-        content = post(data['crosspost_parent_list'][0], True)
+        content += post(data['crosspost_parent_list'][0], True)
     elif data.get("poll_data"):
-        content = poll(data)
-    else:
-        content = reddit_content(data, safe) or alternate_content(data, safe)
+        content += poll(data)
+    elif result := reddit_content(data, safe) or alternate_content(data, safe):
+        content += (result,)
 
     author = data.get("author")
     permalink = data.get("permalink")
@@ -481,13 +489,13 @@ def post(data, safe=False):
     author = ("Posted by", a(href=f'/u/{author}')(f'u/{author}'))
 
     title_link = builder(a(href=permalink),Safe,b,title_)
-    
+
     post_info = post_info_div(subreddit_link(data["subreddit"]),"•", author, get_time(data["created"]), domain)
 
     flair = post_flair(data)
 
     inner = (title_link, flair, content)
-    
+
     votes = div(Class="votes")(span(Class="icon icon-upvote"), votes , span(Class="icon icon-downvote"))
 
     return post_div(votes, inner_post_div(post_info, inner))
