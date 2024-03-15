@@ -161,8 +161,6 @@ def post_content(data, safe):
     output = ()
     text = unescape(data["selftext_html"])
     soup = BeautifulSoup(text, "html.parser")
-    if not data["is_self"]:
-        output += (a(Class="post-link", href=data["url"])(data["url"]),)
     for video_link in soup.find_all("a", href=video_re):
         url = video_link.attrs["href"]
         name = video_re.match(url).group(1)
@@ -473,7 +471,7 @@ def post(data, safe=False):
         content += poll(data)
     elif result := reddit_content(data, safe) or alternate_content(data, safe):
         content += (result,)
-    elif g(data, "post_hint", default=None) == 'link':
+    elif not data.get("is_self"):
         content += (a(Class="post-link", href=data["url"])(data["url"]),)
 
 
