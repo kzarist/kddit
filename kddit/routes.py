@@ -1,17 +1,18 @@
 from bottle import request, response, abort, static_file
 from kddit import app
 from urllib.parse import urlparse
-from kddit.settings import *
+from kddit import settings
 from kddit.utils import req, success, ydl
 from kddit import html
 from kddit.utils import verify_subreddit_option, verify_user_option
 from kddit.utils import get_subreddit_url, get_subreddit
 from kddit.utils import nsfw_mode, get_query
 
+
 def subreddit_content(data, subreddit, option, time, safe):
     content = (html.subreddit_menu(option, subreddit))
-    if option in EXPANDED_OPTIONS:
-        content += (html.subreddit_sort_menu(subreddit, option or DEFAULT_OPTION, time))
+    if option in settings.EXPANDED_OPTIONS:
+        content += (html.subreddit_sort_menu(subreddit, option or settings.DEFAULT_OPTION, time))
     content += (html.mixed_content(data, safe) or html.nothing,)
     content += html.subreddit_nav(data, subreddit, option, time)
     return content
@@ -25,10 +26,10 @@ def search_content(data, subreddit, sort, time, query):
 
 def domain_content(data, domain, option, time):
     content = html.domain_menu(option, domain)
-    if option in EXPANDED_OPTIONS:
-        content += html.domain_sort_menu(domain, option or DEFAULT_OPTION, time)
+    if option in settings.EXPANDED_OPTIONS:
+        content += html.domain_sort_menu(domain, option or settings.DEFAULT_OPTION, time)
     content += html.mixed_content(data, True) or html.nothing
-    content += html.domain_nav(data,domain, option, time)
+    content += html.domain_nav(data, domain, option, time)
     return content
 
 def user_content(data, user, option, sort):
@@ -51,7 +52,7 @@ def multi_content(data, user, multi, option, sort):
 @app.route("/r/<subreddit>/search", "GET")
 def search_page(subreddit=None):
     url = f'https://old.reddit.com{get_subreddit_url()}/search/.json'
-    query = dict(request.query)    
+    query = dict(request.query)
     r = req(url, query)
     if success(r):
         data = r.json()
@@ -72,7 +73,7 @@ def search_page(subreddit=None):
 @app.route("/user/<user>/m/<multi>/<option>", "GET")
 def multi_page(user, multi=None ,option=None):
     verify_subreddit_option()
-    url = f"https://old.reddit.com/user/{user}/m/{multi}/{option or DEFAULT_OPTION}/.json"
+    url = f"https://old.reddit.com/user/{user}/m/{multi}/{option or settings.DEFAULT_OPTION}/.json"
     query = dict(request.query)
     r = req(url, query)
     if success(r):
@@ -112,7 +113,7 @@ def user_page(user, option="overview"):
 @app.route("/r/<subreddit>/<option>", "GET")
 def subreddit_page(subreddit=None, option=None):
     verify_subreddit_option()
-    url = f'https://old.reddit.com{get_subreddit_url()}/{option or DEFAULT_OPTION}.json'
+    url = f'https://old.reddit.com{get_subreddit_url()}/{option or settings.DEFAULT_OPTION}.json'
     query = dict(request.query)
     r = req(url, query)
     if success(r):
@@ -121,9 +122,10 @@ def subreddit_page(subreddit=None, option=None):
         title = get_subreddit() or "kddit"
         header = html.page_header(subreddit=subreddit)
         safe = nsfw_mode(subreddit)
-        content = subreddit_content(data,subreddit,option,time, safe)
+        content = subreddit_content(data, subreddit, option, time, safe)
         return html.page(title, header, content).render()
     return abort(r.status_code)
+
 
 @app.route("/domain/<domain>", "GET")
 @app.route("/domain/<domain>/<option>", "GET")
@@ -131,8 +133,7 @@ def domain_page(domain, option=None):
     verify_subreddit_option()
     query = get_query()
     time = query.get("t")
-    q = query.get("q")
-    url = f'https://old.reddit.com/domain/{domain}/{option or DEFAULT_OPTION}.json'
+    url = f'https://old.reddit.com/domain/{domain}/{option or settings.DEFAULT_OPTION}.json'
     r = req(url, query)
     if success(r):
         data = r.json()
@@ -164,26 +165,18 @@ def post_page(subreddit, post_id, path, comment_id=""):
 
 @app.route("/static/<file>")
 def static(file):
-    return static_file(file, root=f"{ROOT}/static")
+    return static_file(file, root=f"{settings.ROOT}/static")
 
 
 @app.route("/video/<url:path>")
 def video_proxy(url):
     uri = urlparse(url)
-    if (netloc := uri.netloc) in PROXY_ALLOW["video"]:
+    if uri.netloc in settings.PROXY_ALLOW["video"]:
         with ydl:
             result = ydl.extract_info(url, download=True)
             return static_file(
                 f'{result["id"]}.mp4',
-                root=FILE_PATH)
-    elif netloc in PROXY_ALLOW["imgur"]:
-        iurl = url.replace(".gifv", ".mp4")
-        r = req(iurl)
-        if success(r):
-            response.set_header("content-type", r.headers["content-type"])
-            return r.content
-        else:
-            return abort(r.status_code)
+                root=settings.FILE_PATH)
     else:
         return abort(403)
 
@@ -193,7 +186,7 @@ def proxy(url):
     uri = urlparse(url)
     netloc = uri.netloc
     query = get_query()
-    if netloc not in PROXY_ALLOW["image"]:
+    if netloc not in settings.PROXY_ALLOW["image"]:
         return abort(403)
     r = req(url, query)
     if success(r):

@@ -76,12 +76,16 @@ def nsfw_label(arg):
     return label(input_(Class="nsfw", type="checkbox"),arg)
 
 def get_thumbnail(data):
-    thumbnail = g(data, Coalesce("secure_media.oembed.thumbnail_url", "preview.images.-1.source.url"), default="")
+    thumbnail = g(data, Coalesce("preview.images.-1.source.url",
+                                 "secure_media.oembed.thumbnail_url",
+                                 ), default="")
     return f"/proxy/{unescape(thumbnail)}" if thumbnail else None
 
 def get_video(data):
-    is_gif = g(data, "media.reddit_video.is_gif", default=False)
-    url = g(data, "url") if not is_gif else g(data, "media.reddit_video.fallback_url")
+    is_gif = g(data, Coalesce("media.reddit_video.is_gif", "preview.reddit_video_preview.is_gif") , default=False)
+
+    url = g(data, Coalesce("media.reddit_video.fallback_url", "preview.reddit_video_preview.fallback_url", "url"))
+
     return f"/video/{url}" if not is_gif else f"/proxy/{url}"
 
 @tuplefy
@@ -107,7 +111,6 @@ def nsfw(data):
 
 @tuplefy
 def reddit_video(data, safe=False):
-    is_gif = g(data, "media.reddit_video.is_gif", default=False)
     opts = {"controls":""}
     opts["preload"] = "none"
     opts["src"] = get_video(data)
@@ -389,55 +392,21 @@ def user_after_link(data, target, option, sort=None):
     a_ = a(Class="button", href=url)("next>")
     return a_
 
-def alternate_media(data, safe=False):
-    pass
-
-def youtube_media(data, url, uri, safe):
-    output = ()
-    if uri.netloc == "youtu.be":
-        output += alternate_video(data, url, safe)
-    elif v := parse_qs(uri.query).get("v"):
-        u = f"https://youtu.be/{v[0]}"
-        output += alternate_video(data, u, safe)
-    return output
-
-def imgur_media(data, url, safe):
-    if url.endswith(".gifv"):
-        output = alternate_video(data, url, safe=safe)
-    else:
-        output = reddit_image(data, safe=safe)
-    return output
-
-def alternate_content(data, safe=False):
-    url = data["url"]
-    output = ()
-    uri = urlparse(url)
-    netloc = uri.netloc
-    if netloc in PROXY_ALLOW["youtube"]:
-        output += youtube_media(data, url, uri, safe)
-    elif netloc in PROXY_ALLOW["video"]:
-        output += alternate_video(data, url, safe=safe)
-    elif netloc in PROXY_ALLOW["imgur"]:
-        output += imgur_media(data, url, safe)
-    elif netloc in PROXY_ALLOW["image"]:
-        output += reddit_image(data, safe=safe)
-    else:
-        return None
-    return post_content_div(output)
-
 def reddit_media(data, safe):
     output = ()
-    if data["is_video"]:
+    if data["is_video"] or g(data, "preview.reddit_video_preview", default=None):
         output += reddit_video(data, safe=safe)
+    elif data.get("post_hint") != "image":
+        return output
     else:
         output += reddit_image(data, safe=safe)
     return post_content_div(output)
 
 def reddit_content(data, safe=False):
-    if data.get("is_reddit_media_domain") and data.get("thumbnail"):
-        output = reddit_media(data, safe)
-    elif data.get("is_gallery"):
+    if data.get("is_gallery"):
         output = gallery(data, safe=safe)
+    elif not data.get("is_self") and data.get("thumbnail") and data.get("thumbnail") not in ("self", "spoiler"):
+        output = reddit_media(data, safe)
     else:
         output = None
 
@@ -450,13 +419,14 @@ def rich_text(richtext, text):
         if not (a_ or u):
             continue
         text = text.replace(a_, f'<span class="flair-emoji" style="background-image:url(/proxy/{u});"></span>')
-
     return text
 
 def domain_link(data):
     if data.get("is_self"):
         return None
     elif data.get("author") == "[deleted]":
+        return None
+    elif data.get("crosspost_parent_list"):
         return None
     domain = data.get("domain")
     domain_url = f"/domain/{domain}"
@@ -476,7 +446,7 @@ def post(data, safe=False):
         content += poll(data)
     elif data.get("author") == "[deleted]":
         pass
-    elif result := reddit_content(data, safe) or alternate_content(data, safe):
+    elif result := reddit_content(data, safe):
         content += (result,)
 
     author = data.get("author")
@@ -507,7 +477,7 @@ def post(data, safe=False):
 
 @tuplefy
 def poll(data):
-    options = ()
+    poll_options = ()
     tvotes = g(data,"poll_data.total_vote_count")
     for opt in data["poll_data"]["options"]:
         if "vote_count" in opt:
@@ -517,11 +487,11 @@ def poll(data):
                 progress(
                     value=votes,
                     max=tvotes))
-            options += cin
+            poll_options += cin
         else:
             cin = (p(input_(disabled="", type="radio"), opt["text"]))
-            options += (cin,)
-    div_ = div(Class="poll")(options)
+            poll_options += (cin,)
+    div_ = div(Class="poll")(poll_options)
     return div_
 
 

@@ -13,25 +13,12 @@ PROXY_ALLOW = {
         "i.kalli.st",
         "preview.redd.it",
         "emoji.redditmedia.com",
-        "i.ytimg.com",
         "www.redditstatic.com",
-        "i.imgur.com",
-        "i.imgflip.com",
         "external-preview.redd.it",
-        "thumbs.gfycat.com"
     ],
     "video": [
         "v.redd.it",
-        "youtu.be",
-        "gfycat.com",
-        "redgifs.com",
-        "www.redgifs.com"],
-    "youtube": [
-        "youtu.be",
-        "www.youtube.com",
-        "m.youtube.com"],
-    "imgur": [
-        "i.imgur.com"]
+    ],
 }
 
 DEFAULT_OPTION = "hot"
