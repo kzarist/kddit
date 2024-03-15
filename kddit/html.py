@@ -444,7 +444,7 @@ def post(data, safe=False):
         content += post(data['crosspost_parent_list'][0], True)
     elif data.get("poll_data"):
         content += poll(data)
-    elif data.get("author") == "[deleted]":
+    elif data.get("self_text") == "[deleted]":
         pass
     elif result := reddit_content(data, safe):
         content += (result,)
