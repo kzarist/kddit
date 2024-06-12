@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from kddit.settings import HEADERS, TIMESHIFT, YDL_OPTS
+from kddit.settings import HEADERS, TIMESHIFT, YDL_OPTS, CLIENT_ID, CLIENT_SECRET, URL, UA
 from kddit.settings import SUBREDDIT_OPTIONS, SAFE_SUBS, USER_OPTIONS
 import timeago
 import re
@@ -10,6 +10,7 @@ from glom import Coalesce
 from bs4 import BeautifulSoup
 from html import unescape
 from bottle import request, abort
+import requests.auth
 
 ydl = youtube_dl.YoutubeDL(YDL_OPTS)
 
@@ -53,8 +54,28 @@ preview_re = re.compile("https://preview.redd.it/")
 processing_re = re.compile("Processing img (.*)...")
 video_re = re.compile("https://reddit.com/link/.*/video/(.*)/player")
 
-def req(url, params=None):
-    return requests.get(url, params=params, headers=HEADERS)
+def get_token():
+    client_auth = requests.auth.HTTPBasicAuth(CLIENT_ID, CLIENT_SECRET)
+    post_data = {"grant_type": "client_credentials"}
+    response = requests.post("https://www.reddit.com/api/v1/access_token",
+			     auth=client_auth,
+			     data=post_data)
+    if (response.status_code == 200):
+        token_json = response.json()
+        return token_json.get("access_token")
+    return None
+
+def req_url(url, params=None):
+    r = requests.get(url, params=params, headers={"User-Agent": UA})
+    return r
+
+def req(path, params=None):
+    r = requests.get(URL+path, params=params, headers=HEADERS)
+    if r.status_code == 403 and CLIENT_SECRET and CLIENT_ID:
+        if token := get_token():
+            HEADERS.update({"Authorization": "bearer "+token})
+        r = requests.get(URL+path, params=params, headers=HEADERS)
+    return r
 
 def success(r):
     return r.status_code == 200

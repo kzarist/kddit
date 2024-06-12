@@ -2,7 +2,7 @@ from bottle import request, response, abort, static_file
 from kddit import app
 from urllib.parse import urlparse
 from kddit import settings
-from kddit.utils import req, success, ydl
+from kddit.utils import req, success, ydl, req_url
 from kddit import html
 from kddit.utils import verify_subreddit_option, verify_user_option
 from kddit.utils import get_subreddit_url, get_subreddit
@@ -51,7 +51,7 @@ def multi_content(data, user, multi, option, sort):
 @app.route("/search", "GET")
 @app.route("/r/<subreddit>/search", "GET")
 def search_page(subreddit=None):
-    url = f'https://old.reddit.com{get_subreddit_url()}/search/.json'
+    url = f'{get_subreddit_url()}/search/.json'
     query = dict(request.query)
     r = req(url, query)
     if success(r):
@@ -73,7 +73,7 @@ def search_page(subreddit=None):
 @app.route("/user/<user>/m/<multi>/<option>", "GET")
 def multi_page(user, multi=None ,option=None):
     verify_subreddit_option()
-    url = f"https://old.reddit.com/user/{user}/m/{multi}/{option or settings.DEFAULT_OPTION}/.json"
+    url = f"/user/{user}/m/{multi}/{option or settings.DEFAULT_OPTION}/.json"
     query = dict(request.query)
     r = req(url, query)
     if success(r):
@@ -93,7 +93,7 @@ def multi_page(user, multi=None ,option=None):
 @app.route("/user/<user>/<option>", "GET")
 def user_page(user, option="overview"):
     verify_user_option()
-    url = f"https://old.reddit.com/user/{user}/{option}/.json"
+    url = f"/user/{user}/{option}/.json"
     query = dict(request.query)
     r = req(url, query)
     if success(r):
@@ -113,7 +113,7 @@ def user_page(user, option="overview"):
 @app.route("/r/<subreddit>/<option>", "GET")
 def subreddit_page(subreddit=None, option=None):
     verify_subreddit_option()
-    url = f'https://old.reddit.com{get_subreddit_url()}/{option or settings.DEFAULT_OPTION}.json'
+    url = f'{get_subreddit_url()}/{option or settings.DEFAULT_OPTION}.json'
     query = dict(request.query)
     r = req(url, query)
     if success(r):
@@ -133,7 +133,7 @@ def domain_page(domain, option=None):
     verify_subreddit_option()
     query = get_query()
     time = query.get("t")
-    url = f'https://old.reddit.com/domain/{domain}/{option or settings.DEFAULT_OPTION}.json'
+    url = f'/domain/{domain}/{option or settings.DEFAULT_OPTION}.json'
     r = req(url, query)
     if success(r):
         data = r.json()
@@ -148,7 +148,7 @@ def domain_page(domain, option=None):
 @app.route("/r/<subreddit>/comments/<post_id>/<path>", "GET")
 @app.route("/r/<subreddit>/comments/<post_id>/<path>/<comment_id>", "GET")
 def post_page(subreddit, post_id, path, comment_id=""):
-    u = f"https://old.reddit.com/r/{subreddit}/comments/{post_id}/{path}/{comment_id}.json"
+    u = f"/r/{subreddit}/comments/{post_id}/{path}/{comment_id}.json"
     query = get_query()
     r = req(u, query)
     if success(r):
@@ -188,13 +188,12 @@ def proxy(url):
     query = get_query()
     if netloc not in settings.PROXY_ALLOW["image"]:
         return abort(403)
-    r = req(url, query)
+    r = req_url(url, query)
     if success(r):
         response.set_header("content-type", r.headers["content-type"])
         return r.content
     else:
         return abort(r.status_code)
-
 
 @app.error(401)
 @app.error(403)
