@@ -396,7 +396,7 @@ def reddit_media(data, safe):
     output = ()
     if data["is_video"] or g(data, "preview.reddit_video_preview", default=None):
         output += reddit_video(data, safe=safe)
-    elif data.get("post_hint") != "image":
+    elif (data.get("post_hint") and data.get("post_hint") != "image") or not data.get('is_reddit_media_domain'):
         return output
     else:
         output += reddit_image(data, safe=safe)
@@ -405,7 +405,7 @@ def reddit_media(data, safe):
 def reddit_content(data, safe=False):
     if data.get("is_gallery"):
         output = gallery(data, safe=safe)
-    elif not data.get("is_self") and data.get("thumbnail") and data.get("thumbnail") not in ("self", "spoiler"):
+    elif not data.get("is_self") and (data.get("thumbnail") and data.get("thumbnail") not in ("self", "spoiler")) or data.get("is_reddit_media_domain"):
         output = reddit_media(data, safe)
     else:
         output = None
