@@ -71,7 +71,7 @@ def req_url(url, params=None):
 
 def req(path, params=None):
     r = requests.get(URL+path, params=params, headers=HEADERS)
-    if r.status_code == 401 and CLIENT_SECRET and CLIENT_ID:
+    if (r.status_code == 401 or r.status_code == 403) and CLIENT_SECRET and CLIENT_ID:
         if token := get_token():
             HEADERS.update({"Authorization": "bearer "+token})
         r = requests.get(URL+path, params=params, headers=HEADERS)
