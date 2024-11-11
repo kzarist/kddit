@@ -60,7 +60,7 @@ def search_page(subreddit=None):
         sort = query.get("sort")
         q = query.get("q") or ""
         title = f"search results - {q}"
-        header = html.page_header(subreddit=subreddit, q=q)
+        header = html.page_header(subreddit=subreddit)
         content = search_content(data, subreddit, sort, time, query)
         return html.page(title, header, content).render()
     else:
