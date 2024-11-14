@@ -4,7 +4,7 @@ from kddit.settings import SUBREDDIT_OPTIONS, SAFE_SUBS, USER_OPTIONS
 import timeago
 import re
 import requests
-import yt_dlp as youtube_dl
+import youtube_dl
 from glom import glom as g
 from glom import Coalesce
 from bs4 import BeautifulSoup
