@@ -26,6 +26,7 @@ SUBREDDIT_OPTIONS = ["hot", "new", "top", "rising", "controversial"]
 USER_OPTIONS = ["overview", "comments", "submitted"]
 USER_SORT = ["hot", "new", "top", "controversial"]
 SEARCH_SORT = ["relevance", "top", "new", "comments"]
+USER_COMMENT_SORT = ["best", "top", "new", "controversial", "old"]
 EXPANDED_OPTIONS = ["top", "controversial"]
 TIME_OPTIONS = {
     "hour": "now",

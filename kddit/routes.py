@@ -35,10 +35,9 @@ def domain_content(data, domain, option, time):
 def user_content(data, user, option, sort):
     content = html.user_menu(option, user)
     content += html.user_sort_menu(option, sort, user)
-    content += (html.mixed_content(data, True),)
+    content += (html.mixed_content(data, True, True),)
     content += html.user_nav(data, user, option, sort)
     return content
-
 
 def multi_content(data, user, multi, option, sort):
     content = html.multi_menu(option, user, multi)
@@ -106,6 +105,31 @@ def user_page(user, option="overview"):
     else:
         return abort(r.status_code)
 
+@app.route("/u/<user>/comments/<post_id>/<path>", "GET")
+@app.route("/user/<user>/comments/<post_id>/<path>", "GET")
+@app.route("/u/<user>/comments/<post_id>/comment/<comment_id>", "GET")
+@app.route("/user/<user>/comments/<post_id>/comment/<comment_id>", "GET")
+def user_comment_page(user, post_id, path=None, comment_id=None):
+    if path:
+        url = f"/user/{user}/comments/{post_id}/{path}/.json"
+    else:
+        url = f"/user/{user}/comments/{post_id}/comment/{comment_id}/.json"
+    query = dict(request.query)
+    r = req(url, query)
+    if success(r):
+        data = r.json()
+        header = html.page_header(user=user)
+        safe = data[0]["data"]["children"][0]["data"]["over_18"]
+        sort = query.get("sort") or settings.DEFAULT_OPTION
+        content = html.mixed_content(data[0], safe)
+        if path:
+            content += html.user_comments_sort_menu(path, sort)
+        title = f"{data[0]['data']['children'][0]['data']['title']} by u/{user}"
+        comments = data[1]["data"]["children"]
+        content += html.comments(comments, True)
+        return html.page(title, header, content).render()
+    else:
+        return abort(r.status_code)
 
 @app.route("/", "GET")
 @app.route("/<option>", "GET")
