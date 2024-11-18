@@ -133,7 +133,7 @@ def reddit_embed_video(url, over_18=False):
 
 @tuplefy
 def reddit_image(data, url=None, over_18=False, text=None):
-    url = url or unescape(g(data, Coalesce("preview.images.-1.source.url", "url")))
+    url = url or unescape(g(data, Coalesce("preview.images.-1.variants.gif.source.url", "preview.images.-1.source.url", "url")))
     image_ = media_div(img(src=f'/proxy/{url}', loading="lazy"), em(text))
     if nsfw(data) and over_18:
         output = nsfw_label(image_)
