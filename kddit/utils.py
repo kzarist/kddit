@@ -51,6 +51,7 @@ def get_metadata(data, name):
 
 external_preview_re = re.compile("https://external-preview.redd.it/")
 preview_re = re.compile("https://preview.redd.it/")
+image_re = re.compile("https://i.redd.it/")
 processing_re = re.compile("Processing img (.*)...")
 video_re = re.compile("https://reddit.com/link/.*/video/(.*)/player")
 
