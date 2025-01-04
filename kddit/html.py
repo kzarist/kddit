@@ -452,7 +452,7 @@ def domain_link(data):
     return ("(", a(href=domain_url)(f"{domain}"), ")")
 
 @tuplefy
-def post(data, over_18=False, from_user=False):
+def post(data, over_18=False):
     content = ()
     if not data.get("is_self") and not data.get("crosspost_parent_list"):
         content += (a(Class="post-link",href=data["url"])(data["url"]),)
@@ -482,10 +482,6 @@ def post(data, over_18=False, from_user=False):
     title_link = builder(a(href=permalink),Safe,b,title_)
 
     info_args = (subreddit_link(data["subreddit"]),"•", author_info, get_time(data["created"]), domain)
-
-    if from_user:
-        user_comment_url = f"/user/{author}/comments/{data['id']}/_"
-        info_args += (a(href=user_comment_url)("🔗"),)
 
     post_info = post_info_div(*info_args)
 
@@ -535,7 +531,7 @@ def mixed_content(data, over_18, from_user = False):
         if children["kind"] == "t1":
             output += (comment(children, False, from_user),)
         elif children["kind"] == "t3":
-            output += (post(children["data"], over_18, from_user),)
+            output += (post(children["data"], over_18),)
     return output
 
 def comment_flair(data):
