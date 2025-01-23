@@ -415,7 +415,7 @@ def reddit_media(data, over_18):
     output = ()
     if data["is_video"] or g(data, "preview.reddit_video_preview", default=None):
         output += reddit_video(data, over_18=over_18)
-    elif (data.get("post_hint") and data.get("post_hint") != "image") or not data.get('is_reddit_media_domain'):
+    elif (data.get("post_hint") and data.get("post_hint") != "image"):
         return output
     else:
         output += reddit_image(data, over_18=over_18)
