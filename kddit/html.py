@@ -463,8 +463,12 @@ def post(data, over_18=False):
         content += post(data['crosspost_parent_list'][0], True)
     elif data.get("poll_data"):
         content += poll(data)
-    elif data.get("removed_by_category"):
-        pass
+    elif removed_by_category := data.get("removed_by_category"):
+        match removed_by_category:
+            case "moderator":
+                content += post_info_div(p(f"🚫 Sorry, this post has been removed by the moderators of r/{data.get('subreddit')}"))
+            case _:
+                pass
     elif result := reddit_content(data, over_18):
         content += (result,)
 
