@@ -32,6 +32,10 @@ body {
     margin:0;
 }
 
+img {
+  background-color: #050505;
+}
+
 details {
     position:relative;
     background-color:#1a1a1b;
@@ -281,7 +285,7 @@ hr {
 }
 
 .comment-content a, .reply a, .post-content a {
-    color:#0079D3;
+    color:turquoise;
     text-decoration:underline;
 }
 
@@ -320,7 +324,7 @@ hr {
 
 .post-link {
     display:block;
-    color:#0079D3;
+    color:turquoise;
     font-size:12px;
     font-weight:400;
     white-space: nowrap;

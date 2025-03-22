@@ -491,7 +491,7 @@ def post(data, over_18=False):
 
     flair = post_flair(data)
 
-    inner = (title_link, flair, content)
+    inner = (title_link, (br(), flair) if flair else () , content)
 
     votes = div(Class="votes")(
         span(Class="icon icon-upvote"),
