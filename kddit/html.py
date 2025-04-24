@@ -529,11 +529,11 @@ def posts(data, over_18=False):
     return posts_
 
 @tuplefy
-def mixed_content(data, over_18, from_user = False):
+def mixed_content(data, over_18):
     output = ()
     for children in g(data, "data.children"):
         if children["kind"] == "t1":
-            output += (comment(children, False, from_user),)
+            output += (comment(children, True),)
         elif children["kind"] == "t3":
             output += (post(children["data"], over_18),)
     return output
@@ -550,7 +550,7 @@ def post_flair(data):
         flair_text = rich_text(flair_richtext, flair_text )
     return builder(span(Class="flair"),Safe,unescape,flair_text) if flair_text else None
 
-def comment(data, full=False, from_user=False):
+def comment(data, full=False):
     comment_ = data["data"]
     flair = comment_flair(comment_)
     if full:
@@ -559,9 +559,6 @@ def comment(data, full=False, from_user=False):
         header_ += ("by", a(href=f'/u/{comment_["author"]}')(f'u/{comment_["author"]}'),flair)
         header_ += ("in", subreddit_link(comment_["subreddit"]))
         header_ += (get_time(comment_["created"]),)
-        if from_user:
-            user_comment_url = f"/u/{comment_['author']}/comments/{data['id']}/comment/{comment_['id']}"
-            header_ += a(href=user_comment_url)("🔗")
 
         inner = (
             a(href=comment_["permalink"])(b(title_)),
@@ -597,13 +594,13 @@ def reply(data):
     return div(Class="reply")(inner)
 
 @tuplefy
-def comments(data_list, from_user=False):
+def comments(data_list):
     comments = ()
     for data in data_list:
         if data['kind'] == "more":
             comments += (p("..."),)
         else:
-            comments += (comment(data, False, from_user),)
+            comments += (comment(data, False),)
     return div(Class="comments")(comments)
 
 

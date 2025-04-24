@@ -35,7 +35,7 @@ def domain_content(data, domain, option, time):
 def user_content(data, user, option, sort):
     content = html.user_menu(option, user)
     content += html.user_sort_menu(option, sort, user)
-    content += (html.mixed_content(data, True, True),)
+    content += (html.mixed_content(data, True),)
     content += html.user_nav(data, user, option, sort)
     return content
 
