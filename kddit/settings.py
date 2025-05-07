@@ -50,7 +50,9 @@ HEADERS = {
 YDL_OPTS = {
     'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4',
     'merge-output-format': 'mp4',
-    'outtmpl': FILE_PATH + '%(id)s.%(ext)s'
+    'outtmpl': FILE_PATH + '%(id)s.%(ext)s',
+    'external_downloader': 'aria2c',
+    'external_downloader_args': ['--min-split-size=1M --max-connection-per-server=16 --max-concurrent-downloads=16 --split=16'],
 }
 
 CLIENT_ID = app.config.get("kddit.client_id")
