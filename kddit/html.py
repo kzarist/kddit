@@ -5,147 +5,206 @@ from glom import glom as g
 from glom import Coalesce
 from kddit.settings import *
 from urllib.parse import urlencode
-from kddit.utils import get_time, human_format, preview_re, external_preview_re, builder, processing_re, video_re, image_re
+from kddit.utils import (
+    get_time,
+    human_format,
+    preview_re,
+    external_preview_re,
+    builder,
+    processing_re,
+    video_re,
+    image_re,
+)
 from kddit.utils import tuplefy, get_metadata, replace_tag
 
 nothing = (p("there doesn't seem to be anything here"),)
 
-style_css = link(rel="stylesheet", type="text/css", href="/static/style.css")
-slider_css = link(rel="stylesheet", type="text/css", href="/static/slider.css")
-favicon = link(rel="icon", href="/static/favicon.svg")
+style_css = link(rel='stylesheet', type='text/css', href='/static/style.css')
+slider_css = link(rel='stylesheet', type='text/css', href='/static/slider.css')
+favicon = link(rel='icon', href='/static/favicon.svg')
 
-viewport = meta(name="viewport", content_="width=device-width, initial-scale=1.0")
+viewport = meta(name='viewport', content_='width=device-width, initial-scale=1.0')
 
 default_head = (style_css, slider_css, favicon, viewport)
+
 
 class progress(Tag):
     self_closing = False
 
+
 class svg(Tag):
     self_closing = False
+
 
 class path(Tag):
     self_closing = False
 
+
 def subreddit_link(sub):
-    return a(Class="sub-link", href=f"/r/{sub}")(f"r/{sub}")
+    return a(Class='sub-link', href=f'/r/{sub}')(f'r/{sub}')
+
 
 def header_div(*args):
-    return div(Class="header")(*args)
+    return div(Class='header')(*args)
+
 
 def container_div(*args):
-    return div(Class="container")(*args)
+    return div(Class='container')(*args)
+
 
 def content_div(*args):
-    return div(Class="content")(*args)
+    return div(Class='content')(*args)
+
 
 def post_div(*args):
-    return div(Class="post")(*args)
+    return div(Class='post')(*args)
+
 
 def inner_post_div(*args):
-    return div(Class="inner-post")(*args)
+    return div(Class='inner-post')(*args)
+
 
 def media_div(*args):
-    return div(Class="media")(*args)
+    return div(Class='media')(*args)
+
 
 def menu_div(*args):
-    return div(Class="menu")(*args)
+    return div(Class='menu')(*args)
+
 
 @tuplefy
 def post_info_div(*args):
-    return div(Class="post-info")(*args)
+    return div(Class='post-info')(*args)
+
 
 def post_content_div(*args):
-    return div(Class="post-content")(*args)
+    return div(Class='post-content')(*args)
+
 
 def comment_content_div(*args):
-    return div(Class="comment-content")(*args)
+    return div(Class='comment-content')(*args)
+
 
 def slider(arg):
-    mask = div(Class="css-slider-mask")
-    ul_ = ul(Class="css-slider with-responsive-images")
+    mask = div(Class='css-slider-mask')
+    ul_ = ul(Class='css-slider with-responsive-images')
     return builder(mask, ul_, arg)
 
+
 def slider_media(arg):
-    slider = li(Class="slide", tabindex=1)
-    outer = span(Class="slide-outer")
-    inner = span(Class="slide-inner")
-    gfx = span(Class="slide-gfx")(arg)
+    slider = li(Class='slide', tabindex=1)
+    outer = span(Class='slide-outer')
+    inner = span(Class='slide-inner')
+    gfx = span(Class='slide-gfx')(arg)
     return builder(slider, outer, inner, gfx)
 
+
 def nsfw_label(arg):
-    return label(input_(Class="nsfw", type="checkbox"),arg)
+    return label(input_(Class='nsfw', type='checkbox'), arg)
+
 
 def get_thumbnail(data):
-    thumbnail = g(data, Coalesce("preview.images.-1.source.url",
-                                 "secure_media.oembed.thumbnail_url",
-                                 ), default="")
-    return f"/proxy/{unescape(thumbnail)}" if thumbnail else None
+    thumbnail = g(
+        data,
+        Coalesce(
+            'preview.images.-1.source.url',
+            'secure_media.oembed.thumbnail_url',
+        ),
+        default='',
+    )
+    return f'/proxy/{unescape(thumbnail)}' if thumbnail else None
+
 
 def get_video(data):
-    is_gif = g(data, Coalesce("media.reddit_video.is_gif", "preview.reddit_video_preview.is_gif") , default=False)
+    is_gif = g(
+        data,
+        Coalesce('media.reddit_video.is_gif', 'preview.reddit_video_preview.is_gif'),
+        default=False,
+    )
 
-    url = g(data, Coalesce("media.reddit_video.fallback_url", "preview.reddit_video_preview.fallback_url", "url"))
+    url = g(
+        data,
+        Coalesce(
+            'media.reddit_video.fallback_url',
+            'preview.reddit_video_preview.fallback_url',
+            'url',
+        ),
+    )
 
-    return f"/video/{url}" if not is_gif else f"/proxy/{url}"
+    return f'/video/{url}' if not is_gif else f'/proxy/{url}'
+
 
 @tuplefy
 def alternate_video(data, url, over_18=False):
-    return None # disabling for now
+    return None  # disabling for now
     opts = {}
-    opts["src"] = f"/video/{url}"
-    opts["controls"] = ""
+    opts['src'] = f'/video/{url}'
+    opts['controls'] = ''
 
     if nsfw(data) and over_18:
-        opts["preload"] = "none"
+        opts['preload'] = 'none'
     elif thumbnail := get_thumbnail(data):
-        opts["preload"] = "none"
-        opts["poster"] = thumbnail
+        opts['preload'] = 'none'
+        opts['poster'] = thumbnail
     else:
-        opts["preload"] = "metadata"
+        opts['preload'] = 'metadata'
 
     video_ = media_div(video(**opts))
     return video_
 
+
 def nsfw(data):
-    return data.get("over_18")
+    return data.get('over_18')
+
 
 @tuplefy
 def reddit_video(data, over_18=False):
-    opts = {"controls":""}
-    opts["preload"] = "none"
-    opts["src"] = get_video(data)
+    opts = {'controls': ''}
+    opts['preload'] = 'none'
+    opts['src'] = get_video(data)
     if not (nsfw(data) and over_18):
-        opts["poster"] = get_thumbnail(data)
+        opts['poster'] = get_thumbnail(data)
 
     video_ = video(**opts)
     output = media_div(video_)
     return output
+
 
 @tuplefy
 def reddit_embed_video(url, over_18=False):
-    opts = {"controls":""}
-    opts["preload"] = "none" if over_18 else "auto"
-    opts["src"] = f'/video/{url}'
+    opts = {'controls': ''}
+    opts['preload'] = 'none' if over_18 else 'auto'
+    opts['src'] = f'/video/{url}'
     video_ = video(**opts)
     output = media_div(video_)
     return output
 
+
 @tuplefy
 def reddit_image(data, url=None, over_18=False, text=None):
-    url = url or unescape(g(data, Coalesce("preview.images.-1.variants.gif.source.url", "preview.images.-1.source.url", "url")))
-    image_ = media_div(img(src=f'/proxy/{url}', loading="lazy"), em(text))
+    url = url or unescape(
+        g(
+            data,
+            Coalesce(
+                'preview.images.-1.variants.gif.source.url',
+                'preview.images.-1.source.url',
+                'url',
+            ),
+        )
+    )
+    image_ = media_div(img(src=f'/proxy/{url}', loading='lazy'), em(text))
     if nsfw(data) and over_18:
         output = nsfw_label(image_)
     else:
         output = image_
     return output
 
+
 def gallery(data, over_18=False):
     output = ()
     images = ()
-    for item in reversed(g(data,"gallery_data.items", default=[])):
-        media_id = item["media_id"]
+    for item in reversed(g(data, 'gallery_data.items', default=[])):
+        media_id = item['media_id']
         url = get_metadata(data, media_id)
         if url:
             images += reddit_image(data, url, over_18)
@@ -153,6 +212,7 @@ def gallery(data, over_18=False):
         output += slider((slider_media(media) for media in images))
 
     return output
+
 
 def page(title_, header_, content_):
     head_ = head(title(unescape(title_)), default_head)
@@ -163,51 +223,52 @@ def page(title_, header_, content_):
 
 def post_content(data, over_18):
     output = ()
-    text = unescape(data["selftext_html"])
-    soup = BeautifulSoup(text, "html.parser")
-    for video_link in soup.find_all("a", href=video_re):
-        url = video_link.attrs["href"]
+    text = unescape(data['selftext_html'])
+    soup = BeautifulSoup(text, 'html.parser')
+    for video_link in soup.find_all('a', href=video_re):
+        url = video_link.attrs['href']
         name = video_re.match(url).group(1)
-        r_video = reddit_embed_video(f"https://v.redd.it/{name}", over_18=over_18)
+        r_video = reddit_embed_video(f'https://v.redd.it/{name}', over_18=over_18)
         replace_tag(video_link.parent, r_video)
-    for preview_link in soup.find_all("a", href=preview_re):
-        url = preview_link.attrs["href"]
+    for preview_link in soup.find_all('a', href=preview_re):
+        url = preview_link.attrs['href']
         preview_text = preview_link.text
         caption = preview_text if preview_text != url else None
         r_image = reddit_image(data, url, over_18, text=caption)
         replace_tag(preview_link.parent, r_image)
-    for preview_em in soup.find_all("em", string=processing_re):
+    for preview_em in soup.find_all('em', string=processing_re):
         name = processing_re.match(preview_em.text).group(1)
         if url := get_metadata(data, name):
             r_image = reddit_image(data, url, over_18)
-            replace_tag(preview_em , r_image)
+            replace_tag(preview_em, r_image)
     output += (post_content_div(Safe(str(soup))),)
     return output
 
+
 def comment_content(data, over_18):
-    text = unescape(data["body_html"])
-    soup = BeautifulSoup(text, "html.parser")
-    for preview_link in soup.find_all("a", href=preview_re):
-        url = preview_link.attrs["href"]
+    text = unescape(data['body_html'])
+    soup = BeautifulSoup(text, 'html.parser')
+    for preview_link in soup.find_all('a', href=preview_re):
+        url = preview_link.attrs['href']
         preview_text = preview_link.text
         caption = preview_text if preview_text != url else None
         r_image = reddit_image(data, url, over_18, text=caption)
         replace_tag(preview_link, r_image)
-    for image_link in soup.find_all("a", href=image_re):
-        url = image_link.attrs["href"]
+    for image_link in soup.find_all('a', href=image_re):
+        url = image_link.attrs['href']
         preview_text = image_link.text
         caption = preview_text if preview_text != url else None
         r_image = reddit_image(data, url, over_18, text=caption)
         replace_tag(image_link, r_image)
-    for preview_img in soup.find_all("img", src=external_preview_re):
-        url = preview_img.attrs["src"]
-        preview_img.attrs["src"] = f'/proxy/{url}'
-    for preview_em in soup.find_all("em", string=processing_re):
+    for preview_img in soup.find_all('img', src=external_preview_re):
+        url = preview_img.attrs['src']
+        preview_img.attrs['src'] = f'/proxy/{url}'
+    for preview_em in soup.find_all('em', string=processing_re):
         name = processing_re.match(preview_em.text).group(1)
         if url := get_metadata(data, name):
             r_image = reddit_image(data, url, over_18)
-            replace_tag(preview_em , r_image)
-    return builder(comment_content_div, Safe,str,soup)
+            replace_tag(preview_em, r_image)
+    return builder(comment_content_div, Safe, str, soup)
 
 
 @tuplefy
@@ -216,39 +277,41 @@ def subreddit_menu(option, subreddit):
     focused = option or DEFAULT_OPTION
     for o in SUBREDDIT_OPTIONS:
         focus = o == focused
-        sub = f"/r/{subreddit}" if subreddit else ""
-        url = f"{sub}/{o}"
-        a_ = a(href=url, Class="focus")(o) if focus else a(href=url)(o)
+        sub = f'/r/{subreddit}' if subreddit else ''
+        url = f'{sub}/{o}'
+        a_ = a(href=url, Class='focus')(o) if focus else a(href=url)(o)
         output.append(a_)
 
     return menu_div(output)
+
 
 @tuplefy
 def search_sort_menu(subreddit, params):
     output = []
-    focused = params.get("sort", "relevance")
+    focused = params.get('sort', 'relevance')
     for o in SEARCH_SORT:
         query = params.copy()
-        query["sort"] = o
+        query['sort'] = o
         focus = o == focused
-        sub = f"/r/{subreddit}" if subreddit else ""
-        url = f"{sub}/search?{urlencode(query)}"
-        a_ = a(href=url, Class="focus")(o) if focus else a(href=url)(o)
+        sub = f'/r/{subreddit}' if subreddit else ''
+        url = f'{sub}/search?{urlencode(query)}'
+        a_ = a(href=url, Class='focus')(o) if focus else a(href=url)(o)
         output.append(a_)
 
     return menu_div(output)
 
+
 @tuplefy
 def search_time_menu(subreddit, params):
     output = []
-    focused = params.get("t", "hour")
+    focused = params.get('t', 'hour')
     for i, v in TIME_OPTIONS.items():
         query = params.copy()
-        query["t"] = i
+        query['t'] = i
         focus = i == focused
-        sub = f"/r/{subreddit}" if subreddit else ""
-        url = f"{sub}/search?{urlencode(query)}"
-        a_ = a(Class="focus",href=url)(v) if focus else a(href=url)(v)
+        sub = f'/r/{subreddit}' if subreddit else ''
+        url = f'{sub}/search?{urlencode(query)}'
+        a_ = a(Class='focus', href=url)(v) if focus else a(href=url)(v)
         output.append(a_)
 
     return menu_div(output)
@@ -260,46 +323,49 @@ def domain_menu(option, domain):
     focused = option or DEFAULT_OPTION
     for o in SUBREDDIT_OPTIONS:
         focus = o == focused
-        url = f"/domain/{domain}/{o}"
-        a_ = a(href=url, Class="focus")(o) if focus else a(href=url)(o)
+        url = f'/domain/{domain}/{o}'
+        a_ = a(href=url, Class='focus')(o) if focus else a(href=url)(o)
         output.append(a_)
 
     return menu_div(output)
 
+
 @tuplefy
 def subreddit_sort_menu(subreddit, option, time=None):
-    p = f"/r/{subreddit}" if subreddit else ""
-    focused = time or "hour"
+    p = f'/r/{subreddit}' if subreddit else ''
+    focused = time or 'hour'
     output = []
     for i, v in TIME_OPTIONS.items():
         focus = i == focused
         url = f'{p}/{option}?t={i}'
-        a_ = a(Class="focus",href=url)(v) if focus else a(href=url)(v)
+        a_ = a(Class='focus', href=url)(v) if focus else a(href=url)(v)
         output.append(a_)
 
     return menu_div(output)
+
 
 @tuplefy
 def domain_sort_menu(domain, option, time=None):
     output = []
-    focused = time or "hour"
+    focused = time or 'hour'
     for i, v in TIME_OPTIONS.items():
         focus = i == focused
-        url = f"/domain/{domain}/{option}?t={i}"
-        a_ = a(Class="focus",href=url)(v) if focus else a(href=url)(v)
+        url = f'/domain/{domain}/{option}?t={i}'
+        a_ = a(Class='focus', href=url)(v) if focus else a(href=url)(v)
         output.append(a_)
 
     return menu_div(output)
 
+
 @tuplefy
 def multi_sort_menu(user, multi, option, time=None):
-    p = f"/u/{user}/m/{multi}"
-    focused = time or "hour"
+    p = f'/u/{user}/m/{multi}'
+    focused = time or 'hour'
     output = []
     for i, v in TIME_OPTIONS.items():
         focus = i == focused
         url = f'{p}/{option}?t={i}'
-        a_ = a(Class="focus",href=url)(v) if focus else a(href=url)(v)
+        a_ = a(Class='focus', href=url)(v) if focus else a(href=url)(v)
         output.append(a_)
 
     return menu_div(output)
@@ -310,13 +376,14 @@ def user_menu(option, user):
     output = []
     for o in USER_OPTIONS:
         focus = option == o or (not option and o == DEFAULT_OPTION)
-        link_ = f"/u/{user}/{o}"
+        link_ = f'/u/{user}/{o}'
         if focus:
-            a_ = a(href=link_, Class="focus")(o)
+            a_ = a(href=link_, Class='focus')(o)
         else:
             a_ = a(href=link_)(o)
         output.append(a_)
     return menu_div(output)
+
 
 @tuplefy
 def user_sort_menu(option, sort, user):
@@ -324,10 +391,11 @@ def user_sort_menu(option, sort, user):
     focused = sort or DEFAULT_OPTION
     for o in USER_SORT:
         focus = o == focused
-        link_ = f"/u/{user}/{option}/?sort={o}"
-        a_ = a(href=link_, Class="focus")(o) if focus else a(href=link_)(o)
+        link_ = f'/u/{user}/{option}/?sort={o}'
+        a_ = a(href=link_, Class='focus')(o) if focus else a(href=link_)(o)
         output.append(a_)
     return menu_div(output)
+
 
 @tuplefy
 def user_comments_sort_menu(path, sort):
@@ -335,8 +403,8 @@ def user_comments_sort_menu(path, sort):
     focused = sort or DEFAULT_OPTION
     for o in USER_COMMENT_SORT:
         focus = o == focused
-        link_ = f"{path}/?sort={o}"
-        a_ = a(href=link_, Class="focus")(o) if focus else a(href=link_)(o)
+        link_ = f'{path}/?sort={o}'
+        a_ = a(href=link_, Class='focus')(o) if focus else a(href=link_)(o)
         output.append(a_)
     return menu_div(output)
 
@@ -346,348 +414,412 @@ def multi_menu(option, user, multi):
     output = []
     for o in SUBREDDIT_OPTIONS:
         focus = option == o or (not option and o == DEFAULT_OPTION)
-        link_ = f"/u/{user}/m/{multi}/{o}"
+        link_ = f'/u/{user}/m/{multi}/{o}'
         if focus:
-            a_ = a(href=link_, Class="focus")(o)
+            a_ = a(href=link_, Class='focus')(o)
         else:
             a_ = a(href=link_)(o)
         output.append(a_)
     return menu_div(output)
 
+
 @tuplefy
 def before_link(data, target, option, t=None):
-    option = option or ""
-    sub = f"/{target}" if target else ""
-    time = f"t={t}&" if t else ""
+    option = option or ''
+    sub = f'/{target}' if target else ''
+    time = f't={t}&' if t else ''
     url = f'{sub}/{option}?{time}count=25&before={data["data"]["before"]}'
-    a_ = a(Class="button", href=url)("<prev")
+    a_ = a(Class='button', href=url)('<prev')
     return a_
 
 
 @tuplefy
 def after_link(data, target, option, t=None):
-    option = option or ""
-    sub = f"/{target}" if target else ""
-    time = f"t={t}&" if t else ""
+    option = option or ''
+    sub = f'/{target}' if target else ''
+    time = f't={t}&' if t else ''
     url = f'{sub}/{option}?{time}count=25&after={data["data"]["after"]}'
-    a_ = a(Class="button", href=url)("next>")
+    a_ = a(Class='button', href=url)('next>')
     return a_
+
 
 @tuplefy
 def search_before_link(data, target, params):
     query = params.copy()
-    query.pop("after", None)
-    query["before"] = g(data,"data.before")
+    query.pop('after', None)
+    query['before'] = g(data, 'data.before')
     url = f'{target}/?{urlencode(query)}'
-    a_ = a(Class="button", href=url)("<prev")
+    a_ = a(Class='button', href=url)('<prev')
     return a_
 
 
 @tuplefy
 def search_after_link(data, target, params):
     query = params.copy()
-    query.pop("before", None)
-    query["after"] = g(data, "data.after")
+    query.pop('before', None)
+    query['after'] = g(data, 'data.after')
     url = f'{target}/?{urlencode(query)}'
-    a_ = a(Class="button", href=url)("next>")
+    a_ = a(Class='button', href=url)('next>')
     return a_
+
 
 @tuplefy
 def user_before_link(data, target, option, sort=None):
-    option = option or ""
-    sub = f"/{target}" if target else ""
-    time = f"sort={sort}&" if sort else ""
+    option = option or ''
+    sub = f'/{target}' if target else ''
+    time = f'sort={sort}&' if sort else ''
     url = f'{sub}/{option}?{time}count=25&before={data["data"]["before"]}'
-    a_ = a(Class="button", href=url)("<prev")
+    a_ = a(Class='button', href=url)('<prev')
     return a_
 
 
 @tuplefy
 def user_after_link(data, target, option, sort=None):
-    option = option or ""
-    sub = f"/{target}" if target else ""
-    time = f"sort={sort}&" if sort else ""
+    option = option or ''
+    sub = f'/{target}' if target else ''
+    time = f'sort={sort}&' if sort else ''
     url = f'{sub}/{option}?{time}count=25&after={data["data"]["after"]}'
-    a_ = a(Class="button", href=url)("next>")
+    a_ = a(Class='button', href=url)('next>')
     return a_
+
 
 def reddit_media(data, over_18):
     output = ()
-    if data["is_video"] or g(data, "preview.reddit_video_preview", default=None):
+    if data['is_video'] or g(data, 'preview.reddit_video_preview', default=None):
         output += reddit_video(data, over_18=over_18)
-    elif not g(data, Coalesce("preview.images.-1.variants.gif.source.url", "preview.images.-1.source.url"), default="") and not data.get("is_reddit_media_domain"):
+    elif not g(
+        data,
+        Coalesce(
+            'preview.images.-1.variants.gif.source.url', 'preview.images.-1.source.url'
+        ),
+        default='',
+    ) and not data.get('is_reddit_media_domain'):
         return output
     else:
         output += reddit_image(data, over_18=over_18)
     return post_content_div(output)
 
+
 def reddit_content(data, over_18=False):
-    if data.get("is_gallery"):
+    if data.get('is_gallery'):
         output = gallery(data, over_18=over_18)
-    elif not data.get("is_self") and (data.get("thumbnail") and data.get("thumbnail") not in ("self", "spoiler")) or data.get("is_reddit_media_domain"):
+    elif (
+        not data.get('is_self')
+        and (data.get('thumbnail') and data.get('thumbnail') not in ('self', 'spoiler'))
+        or data.get('is_reddit_media_domain')
+    ):
         output = reddit_media(data, over_18)
     else:
         output = None
 
     return output
 
+
 def rich_text(richtext, text):
     for item in richtext:
-        a_ = item.get("a")
-        u = item.get("u")
+        a_ = item.get('a')
+        u = item.get('u')
         if not (a_ or u):
             continue
-        text = text.replace(a_, f'<span class="flair-emoji" style="background-image:url(/proxy/{u});"></span>')
+        text = text.replace(
+            a_,
+            f'<span class="flair-emoji" style="background-image:url(/proxy/{u});"></span>',
+        )
     return text
 
+
 def domain_link(data):
-    if data.get("is_self"):
+    if data.get('is_self'):
         return None
-    elif data.get("author") == "[deleted]":
+    elif data.get('author') == '[deleted]':
         return None
-    elif data.get("crosspost_parent_list"):
+    elif data.get('crosspost_parent_list'):
         return None
-    domain = data.get("domain")
-    domain_url = f"/domain/{domain}"
-    return ("(", a(href=domain_url)(f"{domain}"), ")")
+    domain = data.get('domain')
+    domain_url = f'/domain/{domain}'
+    return ('(', a(href=domain_url)(f'{domain}'), ')')
+
 
 @tuplefy
 def post(data, over_18=False):
     content = ()
-    if not data.get("is_self") and not data.get("crosspost_parent_list"):
-        content += (a(Class="post-link",href=data["url"])(data["url"]),)
+    if not data.get('is_self') and not data.get('crosspost_parent_list'):
+        content += (a(Class='post-link', href=data['url'])(data['url']),)
 
-    if data.get("selftext_html"):
+    if data.get('selftext_html'):
         content += post_content(data, over_18)
-    if data.get("crosspost_parent_list"):
+    if data.get('crosspost_parent_list'):
         content += post(data['crosspost_parent_list'][0], True)
-    elif data.get("poll_data"):
+    elif data.get('poll_data'):
         content += poll(data)
-    elif removed_by_category := data.get("removed_by_category"):
+    elif removed_by_category := data.get('removed_by_category'):
         match removed_by_category:
-            case "moderator":
-                content += post_info_div(p(f"🚫 Sorry, this post has been removed by the moderators of r/{data.get('subreddit')}"))
+            case 'moderator':
+                content += post_info_div(
+                    p(
+                        f'🚫 Sorry, this post has been removed by the moderators of r/{data.get("subreddit")}'
+                    )
+                )
             case _:
                 pass
     elif result := reddit_content(data, over_18):
         content += (result,)
 
-    author = data.get("author")
-    permalink = data.get("permalink")
+    author = data.get('author')
+    permalink = data.get('permalink')
 
-    title_ = unescape(data.get("title"))
+    title_ = unescape(data.get('title'))
 
     domain = domain_link(data)
 
-    votes = human_format(int(data.get("ups") or data.get("downs")))
+    votes = human_format(int(data.get('ups') or data.get('downs')))
 
-    author_info = ("Posted by", a(href=f'/u/{author}')(f'u/{author}'))
+    author_info = ('Posted by', a(href=f'/u/{author}')(f'u/{author}'))
 
-    title_link = builder(a(href=permalink),Safe,b,title_)
+    title_link = builder(a(href=permalink), Safe, b, title_)
 
-    info_args = (subreddit_link(data["subreddit"]),"•", author_info, get_time(data["created"]), domain)
+    info_args = (
+        subreddit_link(data['subreddit']),
+        '•',
+        author_info,
+        get_time(data['created']),
+        domain,
+    )
 
     post_info = post_info_div(*info_args)
 
     flair = post_flair(data)
 
-    inner = (title_link, (br(), flair) if flair else () , content)
+    inner = (title_link, (br(), flair) if flair else (), content)
 
-    votes = div(Class="votes")(
-        span(Class="icon icon-upvote"),
+    votes = div(Class='votes')(
+        span(Class='icon icon-upvote'),
         votes,
     )
 
     return post_div(votes, inner_post_div(post_info, inner))
 
+
 @tuplefy
 def poll(data):
     poll_options = ()
-    tvotes = g(data,"poll_data.total_vote_count")
-    for opt in data["poll_data"]["options"]:
-        if "vote_count" in opt:
-            votes = opt["vote_count"]
-            cin = (
-                p(f'{opt["text"]} : {votes}'),
-                progress(
-                    value=votes,
-                    max=tvotes))
+    tvotes = g(data, 'poll_data.total_vote_count')
+    for opt in data['poll_data']['options']:
+        if 'vote_count' in opt:
+            votes = opt['vote_count']
+            cin = (p(f'{opt["text"]} : {votes}'), progress(value=votes, max=tvotes))
             poll_options += cin
         else:
-            cin = (p(input_(disabled="", type="radio"), opt["text"]))
+            cin = p(input_(disabled='', type='radio'), opt['text'])
             poll_options += (cin,)
-    div_ = div(Class="poll")(poll_options)
+    div_ = div(Class='poll')(poll_options)
     return div_
-
 
 
 def posts(data, over_18=False):
     posts_ = ()
-    for children in g(data, "data.children"):
-        data = children["data"]
+    for children in g(data, 'data.children'):
+        data = children['data']
         posts_ += post(data, over_18)
     return posts_
+
 
 @tuplefy
 def mixed_content(data, over_18):
     output = ()
-    for children in g(data, "data.children"):
-        if children["kind"] == "t1":
+    for children in g(data, 'data.children'):
+        if children['kind'] == 't1':
             output += (comment(children, True),)
-        elif children["kind"] == "t3":
-            output += (post(children["data"], over_18),)
+        elif children['kind'] == 't3':
+            output += (post(children['data'], over_18),)
     return output
 
+
 def comment_flair(data):
-    flair_text = g(data, "author_flair_text", default=None)
-    if flair_richtext := data.get("author_flair_richtext"):
-        flair_text = rich_text(flair_richtext, flair_text )
-    return builder(span(Class="flair"),Safe,unescape,flair_text) if flair_text else None
+    flair_text = g(data, 'author_flair_text', default=None)
+    if flair_richtext := data.get('author_flair_richtext'):
+        flair_text = rich_text(flair_richtext, flair_text)
+    return (
+        builder(span(Class='flair'), Safe, unescape, flair_text) if flair_text else None
+    )
+
 
 def post_flair(data):
-    flair_text = g(data, "link_flair_text", default=None)
-    if flair_richtext := data.get("link_flair_richtext"):
-        flair_text = rich_text(flair_richtext, flair_text )
-    return builder(span(Class="flair"),Safe,unescape,flair_text) if flair_text else None
+    flair_text = g(data, 'link_flair_text', default=None)
+    if flair_richtext := data.get('link_flair_richtext'):
+        flair_text = rich_text(flair_richtext, flair_text)
+    return (
+        builder(span(Class='flair'), Safe, unescape, flair_text) if flair_text else None
+    )
+
 
 def comment(data, full=False):
-    comment_ = data["data"]
+    comment_ = data['data']
     flair = comment_flair(comment_)
     if full:
-        title_ = comment_["link_title"]
+        title_ = comment_['link_title']
         header_ = ()
-        header_ += ("by", a(href=f'/u/{comment_["author"]}')(f'u/{comment_["author"]}'),flair)
-        header_ += ("in", subreddit_link(comment_["subreddit"]))
-        header_ += (get_time(comment_["created"]),)
+        header_ += (
+            'by',
+            a(href=f'/u/{comment_["author"]}')(f'u/{comment_["author"]}'),
+            flair,
+        )
+        header_ += ('in', subreddit_link(comment_['subreddit']))
+        header_ += (get_time(comment_['created']),)
 
         inner = (
-            a(href=comment_["permalink"])(b(title_)),
-            div(Class="comment-info")(header_),
-            comment_content(comment_, True)
+            a(href=comment_['permalink'])(b(title_)),
+            div(Class='comment-info')(header_),
+            comment_content(comment_, True),
         )
-        return div(Class="comment")(inner)
+        return div(Class='comment')(inner)
     else:
         replies_ = replies(data)
         a_ = a(href=f'/u/{comment_["author"]}')(f'u/{comment_["author"]}')
-        link_ = a(href=comment_["permalink"])("🔗")
-        points = (span(human_format(int(comment_["ups"] or comment_["downs"]))), "points", "·" )
-        inner = (div(Class="comment-info")(
-            a_,flair, points,
-            get_time(comment_["created"]), link_),
+        link_ = a(href=comment_['permalink'])('🔗')
+        points = (
+            span(human_format(int(comment_['ups'] or comment_['downs']))),
+            'points',
+            '·',
+        )
+        inner = (
+            div(Class='comment-info')(
+                a_, flair, points, get_time(comment_['created']), link_
+            ),
             comment_content(comment_, True),
-               replies_)
-        return div(Class="comment")(inner)
+            replies_,
+        )
+        return div(Class='comment')(inner)
+
 
 @tuplefy
 def reply(data):
-    comment_ = data["data"]
+    comment_ = data['data']
     flair = comment_flair(comment_)
     replies_ = replies(data)
     a_ = a(href=f'/u/{comment_["author"]}')(f'u/{comment_["author"]}')
-    link_ = a(href=comment_["permalink"])("🔗")
-    points = (span(human_format(int(comment_["ups"] or comment_["downs"]))), "points", "·" )
-    inner = (div(Class="comment-info")(
-        a_,flair, points,
-        get_time(comment_["created"]), link_),
-           comment_content(comment_, True),
-           replies_)
-    return div(Class="reply")(inner)
+    link_ = a(href=comment_['permalink'])('🔗')
+    points = (
+        span(human_format(int(comment_['ups'] or comment_['downs']))),
+        'points',
+        '·',
+    )
+    inner = (
+        div(Class='comment-info')(
+            a_, flair, points, get_time(comment_['created']), link_
+        ),
+        comment_content(comment_, True),
+        replies_,
+    )
+    return div(Class='reply')(inner)
+
 
 @tuplefy
 def comments(data_list):
     comments = ()
     for data in data_list:
-        if data['kind'] == "more":
-            comments += (p("..."),)
+        if data['kind'] == 'more':
+            comments += (p('...'),)
         else:
             comments += (comment(data, False),)
-    return div(Class="comments")(comments)
-
+    return div(Class='comments')(comments)
 
 
 def replies(data):
     replies_ = ()
-    if data['kind'] == "more":
-        replies_ += (p("..."),)
-    for children in g(data, "data.replies.data.children", default=[]):
-        if children['kind'] == "more":
-            replies_ += (p("..."),)
+    if data['kind'] == 'more':
+        replies_ += (p('...'),)
+    for children in g(data, 'data.replies.data.children', default=[]):
+        if children['kind'] == 'more':
+            replies_ += (p('...'),)
         else:
             replies_ += reply(children)
     return ul(replies_) if replies else None
 
 
-
 @tuplefy
 def subreddit_nav(data, subreddit, option=None, time=None):
     buttons = ()
-    target = f"r/{subreddit}" if subreddit else ""
+    target = f'r/{subreddit}' if subreddit else ''
 
-    if data["data"]["before"]:
+    if data['data']['before']:
         buttons += before_link(data, target, option, time)
-    if data["data"]["after"]:
+    if data['data']['after']:
         buttons += after_link(data, target, option, time)
 
-    return div(Class="nav")(buttons) if buttons else ()
+    return div(Class='nav')(buttons) if buttons else ()
+
 
 @tuplefy
 def search_nav(data, subreddit, params):
     buttons = ()
-    target = f"/r/{subreddit}/search" if subreddit else "/search"
-    if g(data, "data.before"):
+    target = f'/r/{subreddit}/search' if subreddit else '/search'
+    if g(data, 'data.before'):
         buttons += search_before_link(data, target, params)
-    if g(data, "data.after"):
+    if g(data, 'data.after'):
         buttons += search_after_link(data, target, params)
 
-    return div(Class="nav")(buttons) if buttons else None
+    return div(Class='nav')(buttons) if buttons else None
+
 
 @tuplefy
 def domain_nav(data, domain, option=None, time=None):
     buttons = ()
-    target = f"domain/{domain}"
-    if data["data"]["before"]:
+    target = f'domain/{domain}'
+    if data['data']['before']:
         buttons += before_link(data, target, option, time)
-    if data["data"]["after"]:
+    if data['data']['after']:
         buttons += after_link(data, target, option, time)
 
-    return div(Class="nav")(buttons) if buttons else ()
+    return div(Class='nav')(buttons) if buttons else ()
+
 
 @tuplefy
 def user_nav(data, user, option=None, time=None):
     buttons = ()
-    target = f"u/{user}"
-    if data["data"]["before"]:
+    target = f'u/{user}'
+    if data['data']['before']:
         buttons += user_before_link(data, target, option, time)
-    if data["data"]["after"]:
+    if data['data']['after']:
         buttons += user_after_link(data, target, option, time)
-    return div(Class="nav")(buttons) if buttons else ()
+    return div(Class='nav')(buttons) if buttons else ()
+
 
 @tuplefy
 def multi_nav(data, user, multi, option=None, time=None):
     buttons = ()
-    target = f"u/{user}/m/{multi}"
-    if data["data"]["before"]:
+    target = f'u/{user}/m/{multi}'
+    if data['data']['before']:
         buttons += user_before_link(data, target, option, time)
-    if data["data"]["after"]:
+    if data['data']['after']:
         buttons += user_after_link(data, target, option, time)
-    return div(Class="nav")(buttons) if buttons else ()
+    return div(Class='nav')(buttons) if buttons else ()
 
 
 def page_header(subreddit=None, user=None, multi=None, domain=None):
-    header_ = (a(Class="main-link",href="/")("kddit"),)
+    header_ = (a(Class='main-link', href='/')('kddit'),)
     if subreddit:
-        header_ += (a(Class="subreddit-link", href=f"/r/{subreddit}")(f"r/{subreddit}"),)
+        header_ += (
+            a(Class='subreddit-link', href=f'/r/{subreddit}')(f'r/{subreddit}'),
+        )
     elif multi and user:
-        header_ += (a(Class="subreddit-link", href=f"/u/{user}/m/{multi}")(f"u/{user}/m/{multi}"),)
+        header_ += (
+            a(Class='subreddit-link', href=f'/u/{user}/m/{multi}')(
+                f'u/{user}/m/{multi}'
+            ),
+        )
     elif user:
-        header_ += (a(Class="subreddit-link", href=f"/u/{user}")(f"u/{user}"),)
+        header_ += (a(Class='subreddit-link', href=f'/u/{user}')(f'u/{user}'),)
     elif domain:
-        header_ += (a(Class="subreddit-link", href=f"/domain/{domain}")(f"domain/{domain}"),)
+        header_ += (
+            a(Class='subreddit-link', href=f'/domain/{domain}')(f'domain/{domain}'),
+        )
 
     return header_
 
+
 def error_page(error):
-    title_ = f"{error.status}!"
+    title_ = f'{error.status}!'
     output = h1(title_)
     header_ = page_header()
     return page(title_, header_, output)

@@ -19,6 +19,16 @@ youtube-dl = "^2021.12.17"
 
 [tool.poetry.group.dev.dependencies]
 uWSGI = "^2.0.28"
+taskipy = "^1.14.1"
+ruff = "^0.11.12"
+
+[tool.ruff.format]
+preview = true
+quote-style = 'single'
+
+[tool.taskipy.tasks]
+format = "ruff format"
+lint = "ruff check"
 
 [build-system]
 requires = ["poetry-core"]
