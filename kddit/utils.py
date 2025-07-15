@@ -49,7 +49,7 @@ def get_thumbnail(url):
         with ydl:
             info = ydl.extract_info(url, download=False)
             return info['thumbnail']
-    except:
+    except Exception:
         return ''
 
 

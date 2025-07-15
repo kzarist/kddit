@@ -1,9 +1,40 @@
-from pyhtml import *
+from pyhtml import (
+    html,
+    head,
+    title,
+    div,
+    a,
+    p,
+    img,
+    span,
+    Safe,
+    link,
+    meta,
+    ul,
+    li,
+    b,
+    em,
+    video,
+    br,
+    h1,
+    label,
+    input_,
+)
+
 from html import unescape
 from bs4 import BeautifulSoup
 from glom import glom as g
 from glom import Coalesce
-from kddit.settings import *
+from kddit.settings import (
+    DEFAULT_OPTION,
+    SUBREDDIT_OPTIONS,
+    USER_OPTIONS,
+    USER_SORT,
+    SEARCH_SORT,
+    USER_COMMENT_SORT,
+    TIME_OPTIONS,
+)
+from pyhtml import Tag
 from urllib.parse import urlencode
 from kddit.utils import (
     get_time,
@@ -215,6 +246,7 @@ def gallery(data, over_18=False):
 
 
 def page(title_, header_, content_):
+    # TODO: thumbnails
     head_ = head(title(unescape(title_)), default_head)
     body_ = (header_div(header_), container_div(content_div(content_)))
     output = html(head_, body_)
