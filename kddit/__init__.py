@@ -9,5 +9,4 @@ def strip_path():
 
 
 def load_config(root):
-    app.config['kddit.root'] = root
     app.config.load_config(f'{root}/app.ini')
