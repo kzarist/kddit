@@ -1,10 +1,12 @@
-from kddit import app, load_config
-import kddit.routes  # noqa: F401
+from kddit import app
 import os
 
 root = os.path.dirname(os.path.realpath(__file__))
 
-load_config(root)
+print(f'Loading kddit application from {root}')
 
+app.config.load_config(f'{root}/app.ini')
+
+import kddit.routes  # noqa: E402, F401
 
 application = app

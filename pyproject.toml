@@ -1,35 +1,31 @@
-[tool.poetry]
+[project]
 name = "kddit"
 version = "0.1.0"
 description = "Alternative frontend for Reddit"
-authors = ["Kylie Czar <czar@kalli.st>"]
-license = "DPL 2.3"
+authors = [{name = "Kylie Czar", email = "czar@kalli.st"}]
+license = {text = "DPL 2.3"}
 readme = "README.md"
-package-mode = false
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi[standard]>=0.115.0",
+    "uvicorn>=0.30.0",
+    "timeago>=1.0.16",
+    "requests>=2.32.3",
+    "glom>=24.11.0",
+    "bs4>=0.0.2",
+    "pyhtml>=1.3.2",
+    "youtube-dl>=2021.12.17",
+]
 
-[tool.poetry.dependencies]
-python = "^3.12"
-bottle = "^0.13.2"
-timeago = "^1.0.16"
-requests = "^2.32.3"
-glom = "^24.11.0"
-bs4 = "^0.0.2"
-pyhtml = "^1.3.2"
-youtube-dl = "^2021.12.17"
-
-[tool.poetry.group.dev.dependencies]
-uWSGI = "^2.0.28"
-taskipy = "^1.14.1"
-ruff = "^0.11.12"
+[dependency-groups]
+dev = [
+    "ruff>=0.11.12",
+]
 
 [tool.ruff.format]
 preview = true
 quote-style = 'single'
 
-[tool.taskipy.tasks]
-format = "ruff format"
-lint = "ruff check"
-
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"

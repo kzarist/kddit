@@ -1,12 +1,8 @@
-from bottle import Bottle, request
+from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from . import settings
 
-app = Bottle()
+__all__ = ['app']
 
-
-@app.hook('before_request')
-def strip_path():
-    request.environ['PATH_INFO'] = request.environ['PATH_INFO'].rstrip('/')
-
-
-def load_config(root):
-    app.config.load_config(f'{root}/app.ini')
+app = FastAPI()
+app.mount('/static', StaticFiles(directory=f'{settings.ROOT}/static'), name='static')

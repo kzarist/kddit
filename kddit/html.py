@@ -22,6 +22,7 @@ from pyhtml import (
 )
 
 from html import unescape
+import http.client
 from bs4 import BeautifulSoup
 from glom import glom as g
 from glom import Coalesce
@@ -166,15 +167,13 @@ def get_video(data):
 
 
 @tuplefy
-def alternate_video(data, url, over_18=False):
+def alternate_video(data, url, over_18=True):
     return None  # disabling for now
     opts = {}
     opts['src'] = f'/video/{url}'
     opts['controls'] = ''
 
-    if nsfw(data) and over_18:
-        opts['preload'] = 'none'
-    elif thumbnail := get_thumbnail(data):
+    if thumbnail := get_thumbnail(data):
         opts['preload'] = 'none'
         opts['poster'] = thumbnail
     else:
@@ -189,12 +188,11 @@ def nsfw(data):
 
 
 @tuplefy
-def reddit_video(data, over_18=False):
+def reddit_video(data, over_18=True):
     opts = {'controls': ''}
     opts['preload'] = 'none'
     opts['src'] = get_video(data)
-    if not (nsfw(data) and over_18):
-        opts['poster'] = get_thumbnail(data)
+    opts['poster'] = get_thumbnail(data)
 
     video_ = video(**opts)
     output = media_div(video_)
@@ -204,7 +202,7 @@ def reddit_video(data, over_18=False):
 @tuplefy
 def reddit_embed_video(url, over_18=False):
     opts = {'controls': ''}
-    opts['preload'] = 'none' if over_18 else 'auto'
+    opts['preload'] = 'auto'
     opts['src'] = f'/video/{url}'
     video_ = video(**opts)
     output = media_div(video_)
@@ -224,10 +222,7 @@ def reddit_image(data, url=None, over_18=False, text=None):
         )
     )
     image_ = media_div(img(src=f'/proxy/{url}', loading='lazy'), em(text))
-    if nsfw(data) and over_18:
-        output = nsfw_label(image_)
-    else:
-        output = image_
+    output = image_
     return output
 
 
@@ -518,7 +513,7 @@ def user_after_link(data, target, option, sort=None):
 def reddit_media(data, over_18):
     output = ()
     if data['is_video'] or g(data, 'preview.reddit_video_preview', default=None):
-        output += reddit_video(data, over_18=over_18)
+        output += reddit_video(data, over_18=False)
     elif not g(
         data,
         Coalesce(
@@ -540,7 +535,7 @@ def reddit_content(data, over_18=False):
         and (data.get('thumbnail') and data.get('thumbnail') not in ('self', 'spoiler'))
         or data.get('is_reddit_media_domain')
     ):
-        output = reddit_media(data, over_18)
+        output = reddit_media(data, True)
     else:
         output = None
 
@@ -581,7 +576,7 @@ def post(data, over_18=False):
     if data.get('selftext_html'):
         content += post_content(data, over_18)
     if data.get('crosspost_parent_list'):
-        content += post(data['crosspost_parent_list'][0], True)
+        content += post(data['crosspost_parent_list'][0], False)
     elif data.get('poll_data'):
         content += poll(data)
     elif removed_by_category := data.get('removed_by_category'):
@@ -850,8 +845,9 @@ def page_header(subreddit=None, user=None, multi=None, domain=None):
     return header_
 
 
-def error_page(error):
-    title_ = f'{error.status}!'
+def error_page(status_code: int):
+    phrase = http.client.responses.get(status_code, 'Error')
+    title_ = f'{status_code} {phrase}!'
     output = h1(title_)
     header_ = page_header()
     return page(title_, header_, output)

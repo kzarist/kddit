@@ -8,7 +8,7 @@ from kddit.settings import (
     URL,
     UA,
 )
-from kddit.settings import SUBREDDIT_OPTIONS, SAFE_SUBS, USER_OPTIONS
+from kddit.settings import SAFE_SUBS
 import timeago
 import re
 import requests
@@ -17,14 +17,9 @@ from glom import glom as g
 from glom import Coalesce
 from bs4 import BeautifulSoup
 from html import unescape
-from bottle import request, abort
 import requests.auth
 
 ydl = youtube_dl.YoutubeDL(YDL_OPTS)
-
-
-def get_query():
-    return dict(request.query)
 
 
 def human_format(num):
@@ -94,6 +89,7 @@ def req_url(url, params=None):
 
 def req(path, params=None):
     r = requests.get(URL + path, params=params, headers=HEADERS)
+    print(f'Requesting {URL + path} with params {params} and headers {HEADERS}')
     if (r.status_code == 401 or r.status_code == 403) and CLIENT_SECRET and CLIENT_ID:
         if token := get_token():
             HEADERS.update({'Authorization': 'bearer ' + token})
@@ -124,33 +120,6 @@ def tuplefy(func):
         return (result,)
 
     return inner
-
-
-def get_subreddit_url():
-    sub = request.url_args.get('subreddit')
-    return f'/r/{sub}' if sub else ''
-
-
-def get_subreddit():
-    sub = request.url_args.get('subreddit')
-    return f'r/{sub}' if sub else ''
-
-
-def get_option():
-    option = request.url_args.get('option')
-    return option
-
-
-def verify_subreddit_option():
-    option = get_option()
-    if option and option not in SUBREDDIT_OPTIONS:
-        return abort(404)
-
-
-def verify_user_option():
-    option = get_option()
-    if option and option not in USER_OPTIONS:
-        return abort(404)
 
 
 def nsfw_mode(subreddit):

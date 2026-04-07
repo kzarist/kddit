@@ -1,7 +1,7 @@
-from kddit import app
+import os
 
-ROOT = app.config['kddit.root']
-TIMESHIFT = int(app.config['kddit.timeshift'])
+ROOT = os.environ.get('KDDIT_ROOT', os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+TIMESHIFT = int(os.environ.get('KDDIT_TIMESHIFT', '3'))
 
 PROXY_ALLOW = {
     'image': [
@@ -41,8 +41,11 @@ SAFE_SUBS = ['all', 'random']
 
 FILE_PATH = f'{ROOT}/videos/'
 
+CLIENT_ID = os.environ.get('KDDIT_CLIENT_ID')
+CLIENT_SECRET = os.environ.get('KDDIT_CLIENT_SECRET')
+
 UA = (
-    app.config.get('user_agent')
+    os.environ.get('KDDIT_USER_AGENT')
     or 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36'
 )
 
@@ -57,9 +60,6 @@ YDL_OPTS = {
         '--min-split-size=1M --max-connection-per-server=16 --max-concurrent-downloads=16 --split=16'
     ],
 }
-
-CLIENT_ID = app.config.get('kddit.client_id')
-CLIENT_SECRET = app.config.get('kddit.client_secret')
 
 if CLIENT_SECRET and CLIENT_ID:
     URL = 'https://oauth.reddit.com'

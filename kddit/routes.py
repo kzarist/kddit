@@ -1,12 +1,12 @@
-from bottle import request, response, abort, static_file
+from fastapi import Request, HTTPException
+from fastapi.responses import HTMLResponse, FileResponse, Response
 from kddit import app
 from urllib.parse import urlparse
 from kddit import settings
 from kddit.utils import req, success, ydl, req_url
 from kddit import html
-from kddit.utils import verify_subreddit_option, verify_user_option
-from kddit.utils import get_subreddit_url, get_subreddit
-from kddit.utils import nsfw_mode, get_query
+from kddit.utils import nsfw_mode
+from kddit.settings import SUBREDDIT_OPTIONS, USER_OPTIONS
 from kddit.content import (
     subreddit_content,
     search_content,
@@ -16,11 +16,18 @@ from kddit.content import (
 )
 
 
-@app.route('/search', 'GET')
-@app.route('/r/<subreddit>/search', 'GET')
-def search_page(subreddit=None):
-    url = f'{get_subreddit_url()}/search/.json'
-    query = dict(request.query)
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    return HTMLResponse(html.error_page(exc.status_code).render(), status_code=exc.status_code)
+
+
+@app.get('/search')
+@app.get('/r/{subreddit}/search')
+def search_page(request: Request, subreddit: str = None):
+    url = f'/r/{subreddit}/search/.json' if subreddit else '/search/.json'
+    query = dict(request.query_params)
+    query.update({'restrict_sr': bool(subreddit), 'include_over_18': 'true'})
+    print(f'search query: {query}')
     r = req(url, query)
     if success(r):
         data = r.json()
@@ -30,19 +37,19 @@ def search_page(subreddit=None):
         title = f'search results - {q}'
         header = html.page_header(subreddit=subreddit)
         content = search_content(data, subreddit, sort, time, query)
-        return html.page(title, header, content).render()
-    else:
-        return abort(r.status_code)
+        return HTMLResponse(html.page(title, header, content).render())
+    raise HTTPException(status_code=r.status_code)
 
 
-@app.route('/u/<user>/m/<multi>', 'GET')
-@app.route('/user/<user>/m/<multi>', 'GET')
-@app.route('/u/<user>/m/<multi>/<option>', 'GET')
-@app.route('/user/<user>/m/<multi>/<option>', 'GET')
-def multi_page(user, multi=None, option=None):
-    verify_subreddit_option()
+@app.get('/u/{user}/m/{multi}')
+@app.get('/user/{user}/m/{multi}')
+@app.get('/u/{user}/m/{multi}/{option}')
+@app.get('/user/{user}/m/{multi}/{option}')
+def multi_page(request: Request, user: str, multi: str, option: str = None):
+    if option and option not in SUBREDDIT_OPTIONS:
+        raise HTTPException(status_code=404)
     url = f'/user/{user}/m/{multi}/{option or settings.DEFAULT_OPTION}/.json'
-    query = dict(request.query)
+    query = dict(request.query_params)
     r = req(url, query)
     if success(r):
         data = r.json()
@@ -50,19 +57,19 @@ def multi_page(user, multi=None, option=None):
         title = f'm/{multi} by u/{user}'
         header = html.page_header(user=user, multi=multi)
         content = multi_content(data, user, multi, option, sort)
-        return html.page(title, header, content).render()
-    else:
-        return abort(r.status_code)
+        return HTMLResponse(html.page(title, header, content).render())
+    raise HTTPException(status_code=r.status_code)
 
 
-@app.route('/u/<user>', 'GET')
-@app.route('/user/<user>', 'GET')
-@app.route('/u/<user>/<option>', 'GET')
-@app.route('/user/<user>/<option>', 'GET')
-def user_page(user, option='overview'):
-    verify_user_option()
+@app.get('/u/{user}')
+@app.get('/user/{user}')
+@app.get('/u/{user}/{option}')
+@app.get('/user/{user}/{option}')
+def user_page(request: Request, user: str, option: str = 'overview'):
+    if option and option not in USER_OPTIONS:
+        raise HTTPException(status_code=404)
     url = f'/user/{user}/{option}/.json'
-    query = dict(request.query)
+    query = dict(request.query_params)
     r = req(url, query)
     if success(r):
         data = r.json()
@@ -70,63 +77,64 @@ def user_page(user, option='overview'):
         title = f'{option} by u/{user}'
         header = html.page_header(user=user)
         content = user_content(data, user, option, sort)
-        return html.page(title, header, content).render()
-    else:
-        return abort(r.status_code)
+        return HTMLResponse(html.page(title, header, content).render())
+    raise HTTPException(status_code=r.status_code)
 
 
-@app.route('/u/<user>/comments/<post_id>/<path>', 'GET')
-@app.route('/user/<user>/comments/<post_id>/<path>', 'GET')
-@app.route('/u/<user>/comments/<post_id>/comment/<comment_id>', 'GET')
-@app.route('/user/<user>/comments/<post_id>/comment/<comment_id>', 'GET')
-def user_comment_page(user, post_id, path=None, comment_id=None):
+@app.get('/u/{user}/comments/{post_id}/{path}')
+@app.get('/user/{user}/comments/{post_id}/{path}')
+@app.get('/u/{user}/comments/{post_id}/comment/{comment_id}')
+@app.get('/user/{user}/comments/{post_id}/comment/{comment_id}')
+def user_comment_page(request: Request, user: str, post_id: str, path: str = None, comment_id: str = None):
     if path:
         url = f'/user/{user}/comments/{post_id}/{path}/.json'
     else:
         url = f'/user/{user}/comments/{post_id}/comment/{comment_id}/.json'
-    query = dict(request.query)
+    query = dict(request.query_params)
     r = req(url, query)
     if success(r):
         data = r.json()
         header = html.page_header(user=user)
-        safe = data[0]['data']['children'][0]['data']['over_18']
+        safe = data[0]['data']['children'][0]['data']['over_18'] = False
         sort = query.get('sort') or settings.DEFAULT_OPTION
         content = html.mixed_content(data[0], safe)
         if path:
             content += html.user_comments_sort_menu(path, sort)
         title = f'{data[0]["data"]["children"][0]["data"]["title"]} by u/{user}'
         comments = data[1]['data']['children']
-        content += html.comments(comments, True)
-        return html.page(title, header, content).render()
-    else:
-        return abort(r.status_code)
+        content += html.comments(comments)
+        return HTMLResponse(html.page(title, header, content).render())
+    raise HTTPException(status_code=r.status_code)
 
 
-@app.route('/', 'GET')
-@app.route('/<option>', 'GET')
-@app.route('/r/<subreddit>', 'GET')
-@app.route('/r/<subreddit>/<option>', 'GET')
-def subreddit_page(subreddit=None, option=None):
-    verify_subreddit_option()
-    url = f'{get_subreddit_url()}/{option or settings.DEFAULT_OPTION}.json'
-    query = dict(request.query)
+@app.get('/')
+@app.get('/{option}')
+@app.get('/r/{subreddit}')
+@app.get('/r/{subreddit}/{option}')
+def subreddit_page(request: Request, subreddit: str = None, option: str = None):
+    if option and option not in SUBREDDIT_OPTIONS:
+        raise HTTPException(status_code=404)
+    subreddit_url = f'/r/{subreddit}' if subreddit else ''
+    url = f'{subreddit_url}/{option or settings.DEFAULT_OPTION}.json'
+    query = dict(request.query_params)
     r = req(url, query)
     if success(r):
         data = r.json()
         time = query.get('t')
-        title = get_subreddit() or 'kddit'
+        title = f'r/{subreddit}' if subreddit else 'kddit'
         header = html.page_header(subreddit=subreddit)
         safe = nsfw_mode(subreddit)
         content = subreddit_content(data, subreddit, option, time, safe)
-        return html.page(title, header, content).render()
-    return abort(r.status_code)
+        return HTMLResponse(html.page(title, header, content).render())
+    raise HTTPException(status_code=r.status_code)
 
 
-@app.route('/domain/<domain>', 'GET')
-@app.route('/domain/<domain>/<option>', 'GET')
-def domain_page(domain, option=None):
-    verify_subreddit_option()
-    query = get_query()
+@app.get('/domain/{domain}')
+@app.get('/domain/{domain}/{option}')
+def domain_page(request: Request, domain: str, option: str = None):
+    if option and option not in SUBREDDIT_OPTIONS:
+        raise HTTPException(status_code=404)
+    query = dict(request.query_params)
     time = query.get('t')
     url = f'/domain/{domain}/{option or settings.DEFAULT_OPTION}.json'
     r = req(url, query)
@@ -135,16 +143,15 @@ def domain_page(domain, option=None):
         title = domain
         header = html.page_header(domain=domain)
         content = domain_content(data, domain, option, time)
-        return html.page(title, header, content).render()
-    else:
-        return abort(r.status_code)
+        return HTMLResponse(html.page(title, header, content).render())
+    raise HTTPException(status_code=r.status_code)
 
 
-@app.route('/r/<subreddit>/comments/<post_id>/<path>', 'GET')
-@app.route('/r/<subreddit>/comments/<post_id>/<path>/<comment_id>', 'GET')
-def post_page(subreddit, post_id, path, comment_id=''):
+@app.get('/r/{subreddit}/comments/{post_id}/{path}')
+@app.get('/r/{subreddit}/comments/{post_id}/{path}/{comment_id}')
+def post_page(request: Request, subreddit: str, post_id: str, path: str, comment_id: str = ''):
     u = f'/r/{subreddit}/comments/{post_id}/{path}/{comment_id}.json'
-    query = get_query()
+    query = dict(request.query_params)
     r = req(u, query)
     if success(r):
         data = r.json()
@@ -153,50 +160,28 @@ def post_page(subreddit, post_id, path, comment_id=''):
         title = post['title']
         content = (html.post(post), html.comments(comments))
         header = html.page_header(subreddit=subreddit)
-        return html.page(title, header, content).render()
-    else:
-        return abort(r.status_code)
+        return HTMLResponse(html.page(title, header, content).render())
+    raise HTTPException(status_code=r.status_code)
 
 
-@app.route('/static/<file>')
-def static(file):
-    return static_file(file, root=f'{settings.ROOT}/static')
-
-
-@app.route('/video/<url:path>')
-def video_proxy(url):
+@app.get('/video/{url:path}')
+def video_proxy(url: str):
     uri = urlparse(url)
     if uri.netloc in settings.PROXY_ALLOW['video']:
         with ydl:
             result = ydl.extract_info(url, download=True)
-            return static_file(f'{result["id"]}.mp4', root=settings.FILE_PATH)
-    else:
-        return abort(403)
+            return FileResponse(f'{settings.FILE_PATH}{result["id"]}.mp4')
+    raise HTTPException(status_code=403)
 
 
-@app.route('/proxy/<url:path>')
-def proxy(url):
+@app.get('/proxy/{url:path}')
+def proxy(url: str, request: Request):
     uri = urlparse(url)
     netloc = uri.netloc
-    query = get_query()
+    query = dict(request.query_params)
     if netloc not in settings.PROXY_ALLOW['image']:
-        return abort(403)
+        raise HTTPException(status_code=403)
     r = req_url(url, query)
     if success(r):
-        response.set_header('content-type', r.headers['content-type'])
-        return r.content
-    else:
-        return abort(r.status_code)
-
-
-@app.error(401)
-@app.error(403)
-@app.error(404)
-@app.error(405)
-@app.error(406)
-@app.error(429)
-@app.error(451)
-@app.error(500)
-@app.error(503)
-def error_redirect(error):
-    return html.error_page(error).render()
+        return Response(content=r.content, media_type=r.headers['content-type'])
+    raise HTTPException(status_code=r.status_code)
