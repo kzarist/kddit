@@ -12,14 +12,14 @@ from kddit.settings import SAFE_SUBS
 import timeago
 import re
 import requests
-import youtube_dl
+import yt_dlp
 from glom import glom as g
 from glom import Coalesce
 from bs4 import BeautifulSoup
 from html import unescape
 import requests.auth
 
-ydl = youtube_dl.YoutubeDL(YDL_OPTS)
+ydl = yt_dlp.YoutubeDL(YDL_OPTS)
 
 
 def human_format(num):

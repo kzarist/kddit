@@ -56,9 +56,14 @@ YDL_OPTS = {
     'merge-output-format': 'mp4',
     'outtmpl': FILE_PATH + '%(id)s.%(ext)s',
     'external_downloader': 'aria2c',
-    'external_downloader_args': [
-        '--min-split-size=1M --max-connection-per-server=16 --max-concurrent-downloads=16 --split=16'
-    ],
+    'external_downloader_args': {
+        'aria2c': [
+            '--min-split-size=1M',
+            '--max-connection-per-server=16',
+            '--max-concurrent-downloads=16',
+            '--split=16',
+        ]
+    },
 }
 
 if CLIENT_SECRET and CLIENT_ID:

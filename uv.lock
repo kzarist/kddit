@@ -470,7 +470,7 @@ dependencies = [
     { name = "requests" },
     { name = "timeago" },
     { name = "uvicorn" },
-    { name = "youtube-dl" },
+    { name = "yt-dlp" },
 ]
 
 [package.dev-dependencies]
@@ -487,7 +487,7 @@ requires-dist = [
     { name = "requests", specifier = ">=2.32.3" },
     { name = "timeago", specifier = ">=1.0.16" },
     { name = "uvicorn", specifier = ">=0.30.0" },
-    { name = "youtube-dl", specifier = ">=2021.12.17" },
+    { name = "yt-dlp", specifier = ">=2024.1.1" },
 ]
 
 [package.metadata.requires-dev]
@@ -1190,10 +1190,10 @@ wheels = [
 ]
 
 [[package]]
-name = "youtube-dl"
-version = "2021.12.17"
+name = "yt-dlp"
+version = "2026.3.17"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/01/4f/ab0d0806f4d818168d0ec833df14078c9d1ddddb5c42fa7bfb6f15ecbfa7/youtube_dl-2021.12.17.tar.gz", hash = "sha256:bc59e86c5d15d887ac590454511f08ce2c47698d5a82c27bfe27b5d814bbaed2", size = 1555640, upload-time = "2021-12-16T19:02:06.55Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/8b/34/7c6b4e3f89cb6416d2cd7ab6dab141a1df97ab0fb22d15816db2c92148c9/yt_dlp-2026.3.17.tar.gz", hash = "sha256:ba7aa31d533f1ffccfe70e421596d7ca8ff0bf1398dc6bb658b7d9dec057d2c9", size = 3119221, upload-time = "2026-03-17T23:43:00.244Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/40/93/65c208f51895f74bbfea1423974c54fff1d1c4e9a97ebee1011b021554b8/youtube_dl-2021.12.17-py2.py3-none-any.whl", hash = "sha256:f1336d5de68647e0364a47b3c0712578e59ec76f02048ff5c50ef1c69d79cd55", size = 1902317, upload-time = "2021-12-16T19:02:14.147Z" },
+    { url = "https://files.pythonhosted.org/packages/cd/13/5093bcb954878e50f7217fd2ab94282b53934022e4e4a03265582da83bf5/yt_dlp-2026.3.17-py3-none-any.whl", hash = "sha256:32992db94303a8a5d211a183f2174834fe7f8c29d83ed2e7a324eae97a8f26d8", size = 3315134, upload-time = "2026-03-17T23:42:57.863Z" },
 ]
