@@ -221,7 +221,7 @@ def reddit_image(data, url=None, over_18=False, text=None):
             ),
         )
     )
-    image_ = media_div(img(src=f'/proxy/{url}', loading='lazy'), em(text))
+    image_ = media_div(img(src=f'/proxy/{url}', loading='eager'), em(text))
     output = image_
     return output
 
