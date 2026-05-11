@@ -4,6 +4,7 @@ from kddit import app
 from urllib.parse import urlparse
 from kddit import settings
 from kddit.utils import req, success, ydl, req_url
+import yt_dlp
 from kddit import html
 from kddit.utils import nsfw_mode
 from kddit.settings import SUBREDDIT_OPTIONS, USER_OPTIONS
@@ -167,11 +168,18 @@ def post_page(request: Request, subreddit: str, post_id: str, path: str, comment
 @app.get('/video/{url:path}')
 def video_proxy(url: str):
     uri = urlparse(url)
-    if uri.netloc in settings.PROXY_ALLOW['video']:
-        with ydl:
-            result = ydl.extract_info(url, download=True)
-            return FileResponse(f'{settings.FILE_PATH}{result["id"]}.mp4')
-    raise HTTPException(status_code=403)
+    if uri.netloc not in settings.PROXY_ALLOW['video']:
+        raise HTTPException(status_code=403)
+
+    cache_key = uri.path.strip('/').replace('/', '_') or 'unknown'
+    if not cache_key.endswith('.mp4'):
+        cache_key += '.mp4'
+    out_path = f'{settings.FILE_PATH}{cache_key}'
+
+    opts = {**settings.YDL_OPTS, 'outtmpl': out_path}
+    with yt_dlp.YoutubeDL(opts) as local_ydl:
+        local_ydl.extract_info(url, download=True)
+    return FileResponse(out_path)
 
 
 @app.get('/proxy/{url:path}')
