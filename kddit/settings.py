@@ -52,8 +52,8 @@ UA = (
 HEADERS = {'User-Agent': UA}
 
 YDL_OPTS = {
-    'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4',
-    'merge-output-format': 'mp4',
+    'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best',
+    'merge_output_format': 'mp4',
     'outtmpl': FILE_PATH + '%(id)s.%(ext)s',
     'external_downloader': 'aria2c',
     'external_downloader_args': {

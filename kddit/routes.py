@@ -1,9 +1,11 @@
+import os
+
 from fastapi import Request, HTTPException
 from fastapi.responses import HTMLResponse, FileResponse, Response
 from kddit import app
 from urllib.parse import urlparse
 from kddit import settings
-from kddit.utils import req, success, ydl, req_url
+from kddit.utils import req, success, req_url
 import yt_dlp
 from kddit import html
 from kddit.utils import nsfw_mode
@@ -171,14 +173,19 @@ def video_proxy(url: str):
     if uri.netloc not in settings.PROXY_ALLOW['video']:
         raise HTTPException(status_code=403)
 
-    cache_key = uri.path.strip('/').replace('/', '_') or 'unknown'
-    if not cache_key.endswith('.mp4'):
-        cache_key += '.mp4'
-    out_path = f'{settings.FILE_PATH}{cache_key}'
+    # reddit hands us a video-only track (.../CMAF_720.mp4); the audio lives in a
+    # sibling representation, so feed yt-dlp the DASH manifest instead and let it
+    # mux the two together.
+    video_id = next((part for part in uri.path.split('/') if part), None)
+    if not video_id:
+        raise HTTPException(status_code=400)
+    source = f'https://{uri.netloc}/{video_id}/DASHPlaylist.mpd'
 
-    opts = {**settings.YDL_OPTS, 'outtmpl': out_path}
-    with yt_dlp.YoutubeDL(opts) as local_ydl:
-        local_ydl.extract_info(url, download=True)
+    out_path = f'{settings.FILE_PATH}{video_id}.mp4'
+    if not os.path.exists(out_path):
+        opts = {**settings.YDL_OPTS, 'outtmpl': out_path}
+        with yt_dlp.YoutubeDL(opts) as local_ydl:
+            local_ydl.download([source])
     return FileResponse(out_path)
 
 
